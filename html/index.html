@@ -1,0 +1,330 @@
+<!DOCTYPE HTML>
+<HTML>
+<HEAD>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <META HTTP-EQUIV="Content-Type" CONTENT="text/html; CHARSET=utf-8">
+
+    <TITLE>Ari Glasser</TITLE>
+
+    <link rel="stylesheet" href="./index.css" type="text/css">
+
+    <script>
+      const getGematria = (() => {
+        const gematriaMap = {
+          1: 'א', 2: 'ב', 3: 'ג', 4: 'ד', 5: 'ה', 6: 'ו', 7: 'ז', 8: 'ח', 9: 'ט',
+          10: 'י', 20: 'כ', 30: 'ל', 40: 'מ', 50: 'נ', 60: 'ס', 70: 'ע', 80: 'פ',
+          90: 'צ', 100: 'ק', 200: 'ר', 300: 'ש', 400: 'ת'
+        };
+        return (num) => {
+          let result = '';
+          while (num >= 400) {
+            result += gematriaMap[400];
+            num -= 400;
+          }
+
+          // Handle numbers from 1 to 399
+          for (const value of [100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]) {
+            while (num >= value) {
+              result += gematriaMap[value];
+              num -= value;
+            }
+          }
+          return result;
+        }
+      })()
+
+      window.TODAYS_PRAKIM = (() => {
+        const today = new Date();
+        const weekday = today.getDay();
+        const prakim = [[1, 29], [30, 50], [51, 72], [73, 89], [90, 106], [107, 150]];
+        return prakim[weekday];
+      })()
+
+      //console.log('TODAYS_PRAKIM', window.TODAYS_PRAKIM)
+      async function calculateTotalTime() {
+        //console.log('calculating total time')
+        let index = 0;
+        const audioFiles = Array.from({length: window.TODAYS_PRAKIM[1] - window.TODAYS_PRAKIM[0] + 1}, (v, i) => {
+          const n = (i + window.TODAYS_PRAKIM[0]).toString().padStart(3, '0')
+          return `./mp3/${n}.mp3`;
+        })
+        //console.log('audioFiles', audioFiles)
+        const audioTimes = audioFiles.map((file) => {
+          return new Promise((resolve, reject) => {
+            const audio = new Audio(file);
+            // audio.src = file;
+            audio.addEventListener('loadedmetadata', e => {
+              resolve(e.target.duration);
+            });
+            audio.addEventListener('error', e => {
+              reject(e);
+            });
+            audio.load();  // Trigger loading of the audio file
+          });
+        });
+        const times = await Promise.all(audioTimes);
+        return times.reduce((acc, time) => acc + time, 0);
+      }
+
+      function createPerkTableHTML({perk, lines}) {
+        //console.log('createPerkTableHTML')
+        const rows = lines.map(line =>
+          `<tr>
+            <td class="row_num">${line.verse}</td>
+            <td class="row_txt">${line.text}</td>
+          </tr>`
+        );
+        return `
+            <table>
+                <thead>
+                    <tr>
+                        <th colspan="2">פרק ${perk} </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.join('\n')}
+                </tbody>
+            </table>`;
+      }
+
+      async function loadPerk(perk) {
+        //console.log('loadPerk', perk)
+        if (window.CURRENT_PERK && (perk < window.TODAYS_PRAKIM[0] || perk > window.TODAYS_PRAKIM[1])) {
+          //dont validate if no perk just show first one
+          return
+        }
+
+        if (perk === undefined) {
+          perk = window.TODAYS_PRAKIM[0]
+        } else {
+          if (isNaN(perk)) {
+            perk = window.TODAYS_PRAKIM[0]
+          }
+          window.CURRENT_PERK = perk;
+        }
+
+        const n = perk.toString().padStart(3, '0')
+        const data = await (await fetch(`./prakim/${n}.json`)).json();
+        document.getElementById('main').innerHTML = createPerkTableHTML(data);
+
+        if (window.CURRENT_PERK !== undefined) {
+          //dont auto play first time
+          audioPlayer.src = `./mp3/${n}.mp3`;
+          audioPlayer.playbackRate = getSpeed();
+          audioPlayer.play();
+        }
+      }
+
+      function showPrakim() {
+        //console.log('showPrakim')
+        const html =
+          Array.from({length: window.TODAYS_PRAKIM[1] - window.TODAYS_PRAKIM[0] + 1}, (v, i) => window.TODAYS_PRAKIM[0] + i)
+            .map(p => `<span className="item" onclick=loadPerk(${p})> ${getGematria(p)}</span>`)
+            .join(',');
+        document.getElementById('prakim').innerHTML = html
+      }
+
+
+      function togglePlayPause() {
+        //console.log('togglePlayPause')
+        if (audioPlayer.paused) {
+          if (window.CURRENT_PERK === undefined) {
+            loadPerk(window.TODAYS_PRAKIM[0])
+          } else {
+            audioPlayer.play();
+          }
+        } else {
+          audioPlayer.pause();
+        }
+      }
+
+      function formatTime(seconds) {
+        //console.log('formatTime')
+        if (!seconds) {
+          return "0s";
+        }
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        const ms = Math.round((seconds % 1) * 1000);  // Get milliseconds if necessary
+
+        // Format the time parts as strings with leading zeros if needed
+        const hrsStr = hrs > 0 ? hrs + "h " : "";
+        const minsStr = mins > 0 ? mins + "m " : "";
+        const secsStr = secs + "s";
+        const msStr = ms > 0 ? " " + ms + "ms" : "";
+
+        // Combine the parts and return the formatted string
+        return `${hrsStr}${minsStr}${secsStr}`.trim();
+      }
+
+      function getUpdateProgress() {
+        const progress = document.getElementById('progress');
+        const playBtn = document.getElementById('playBtn');
+        const timeDisplay = document.getElementById('timeDisplay');
+
+
+        const SVG_PLAY = `
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="black">
+                    <polygon points="5,3 19,12 5,21" />
+                     </svg>`
+          const SVG_PAUSE = `
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" />
+                    <rect x="14" y="4" width="4" height="16" />
+                </svg>`
+          let state;
+        const togglePlayState = () => {
+            if (state !== audioPlayer.paused) {
+              state = audioPlayer.paused;
+              playBtn.innerHTML = audioPlayer.paused ? SVG_PLAY : SVG_PAUSE
+            }
+          }
+
+        return ()=> {
+          console.log('updateProgress')
+          togglePlayState();
+
+          // Get current time and duration, accounting for playback rate
+          const audioPlayerTime = isNaN(audioPlayer.currentTime) ? 0 : audioPlayer.currentTime;
+          const audioPlayerDuration = isNaN(audioPlayer.duration) ? 0 : audioPlayer.duration;
+          const playbackRate = getSpeed();
+          // Adjust duration display based on the playback rate
+          const adjustedDuration = audioPlayerDuration / playbackRate;
+          const adjustedPlayTime = audioPlayerTime / playbackRate;
+
+          // Calculate the percentage of progress
+          const percent = (audioPlayerTime / audioPlayerDuration) * 100;
+          progress.style.width = percent + '%';
+
+          // Calculate current time and total time display values
+          const currentMinutes = Math.floor(adjustedPlayTime / 60);
+          const currentSeconds = Math.floor(adjustedPlayTime % 60).toString().padStart(2, '0');
+
+          const totalMinutes = Math.floor(adjustedDuration / 60);
+          const totalSeconds = Math.floor(adjustedDuration % 60).toString().padStart(2, '0');
+            console.log('pdate the time display')
+          // Update the time display
+          timeDisplay.textContent = `${currentMinutes}:${currentSeconds} / ${totalMinutes}:${totalSeconds} (${formatTime(window.TOTAL_TIME / playbackRate)})`;
+        }
+      }
+
+      function getPlayNext(){
+        const playNext = document.getElementById('playNext')
+        return ()=>{
+          if (playNext.checked) {
+            loadPerk(window.CURRENT_PERK + 1)
+          }
+        }
+      }
+      //console.log('end script 1')
+    </script>
+</HEAD>
+<BODY class="body">
+<div class="hebrew">
+    <div class="buttons">
+        <button class='btn' id="firstButton" onclick="loadPerk(window.TODAYS_PRAKIM[0])">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor"
+                 stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 18l7-6-7-6v12z"/>
+                <path d="M13 18l7-6-7-6v12z"/>
+            </svg>
+        </button>
+
+        <button class='btn' id="prevButton" onclick="loadPerk(window.CURRENT_PERK -1)">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor"
+                 stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 6l6 6-6 6V6z"/>
+            </svg>
+        </button>
+
+        <audio id="audioPlayer"></audio>
+
+        <button class="btn" id="playBtn" onclick="togglePlayPause()">Play</button>
+
+        <button class='btn' id="nextButton" onclick="loadPerk(window.CURRENT_PERK + 1)">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor"
+                 stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 18l-6-6 6-6v12z"/>
+            </svg>
+        </button>
+
+        <button class='btn' id="lastButton" onclick="loadPerk(window.TODAYS_PRAKIM[1])">
+
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor"
+                 stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 6l-7 6 7 6V6z"/>
+                <path d="M11 6l-7 6 7 6V6z"/>
+            </svg>
+        </button>
+
+        <div class="container">
+            <label id="volumeLabel" for="volume">Volume 1:</label>
+            <input type="range" id="volume" class="volume" min="0" max="1" step="0.1" value="1">
+        </div>
+
+        <div class="container">
+            <label id="speedLabel" for="speed">Speed 2.0:</label>
+            <input type="range" id="speed" class="speed" min="0.1" max="6" step="0.1" value="2">
+        </div>
+        <div class="container">
+            <label id="playNextLabel" for="playNext">Play Next:</label>
+            <input type="checkbox" id="playNext" checked>
+        </div>
+
+
+        <div id="prakim"></div>
+
+        <div class="container" id="progressContainer">
+            <div class="progress" id="progress"></div>
+        </div>
+
+        <div class="time" id="timeDisplay">0:00 / 0:00</div>
+    </div>
+
+    <div id="main"></div>
+</div>
+</BODY>
+
+<script>
+  //console.log('in script 2')
+  const audioPlayer = document.getElementById('audioPlayer')
+
+  const updateProgress = getUpdateProgress();
+  audioPlayer.addEventListener('ended', getPlayNext());
+
+  audioPlayer.addEventListener('timeupdate', updateProgress);
+  const getSpeed = (()=> {
+    const volumeControl = document.getElementById('volume');
+    const volumeLabel = document.getElementById('volumeLabel');
+    const speedControl = document.getElementById('speed');
+    const speedLabel = document.getElementById('speedLabel');
+    volumeControl.addEventListener('input', (e) => {
+      audioPlayer.volume = e.target.value;
+      volumeLabel.textContent = `Volume ${e.target.value}:`;
+    });
+
+    speedControl.addEventListener('input', (e) => {
+      audioPlayer.playbackRate = e.target.value;
+      speedLabel.textContent = `Speed ${e.target.value}:`;
+      if (audioPlayer.paused) {
+        updateProgress()
+      }
+    });
+    return ()=>speedControl.value;
+  })
+  ()
+
+
+  showPrakim();
+  Promise.all([calculateTotalTime(), loadPerk()]).then(([total]) => {
+    window.TOTAL_TIME = total;
+    updateProgress()
+  });
+
+</script>
+</HTML>
