@@ -63,7 +63,13 @@
           });
         });
         const times = await Promise.all(audioTimes);
-        return times.reduce((acc, time) => acc + time, 0);
+        let totals = {total:0};
+        times.forEach((time,i) => {
+          totals[ i + window.TODAYS_PRAKIM[0]]  = totals.total;
+          totals.total += time;
+          }
+        );
+        return totals;
       }
 
       function createPerkTableHTML({perk, lines}) {
@@ -90,7 +96,6 @@
       async function loadPerk(perk) {
         //console.log('loadPerk', perk)
         if (window.CURRENT_PERK && (perk < window.TODAYS_PRAKIM[0] || perk > window.TODAYS_PRAKIM[1])) {
-          //dont validate if no perk just show first one
           return
         }
 
@@ -102,6 +107,13 @@
           }
           window.CURRENT_PERK = perk;
         }
+            // window.scroll({
+            //   top: 0,
+            //   // behavior: 'smooth' // Optional: Use 'auto' for instant scrolling
+            // });
+
+        document.querySelectorAll('.item').forEach((el) => el.classList.remove('active'));
+        document.getElementById(`perk_${perk}`).classList.add('active');
 
         const n = perk.toString().padStart(3, '0')
         const data = await (await fetch(`./prakim/${n}.json`)).json();
@@ -116,10 +128,9 @@
       }
 
       function showPrakim() {
-        //console.log('showPrakim')
         const html =
           Array.from({length: window.TODAYS_PRAKIM[1] - window.TODAYS_PRAKIM[0] + 1}, (v, i) => window.TODAYS_PRAKIM[0] + i)
-            .map(p => `<span className="item" onclick=loadPerk(${p})> ${getGematria(p)}</span>`)
+            .map(p => `<span id="perk_${p}" class="item" onclick=loadPerk(${p})> ${getGematria(p)}</span>`)
             .join(',');
         document.getElementById('prakim').innerHTML = html
       }
@@ -149,17 +160,18 @@
         const ms = Math.round((seconds % 1) * 1000);  // Get milliseconds if necessary
 
         // Format the time parts as strings with leading zeros if needed
-        const hrsStr = hrs > 0 ? hrs + "h " : "";
-        const minsStr = mins > 0 ? mins + "m " : "";
-        const secsStr = secs + "s";
+        const hrsStr = hrs.toString().padStart(2, '0')
+        const minsStr = mins.toString().padStart(2, '0')
+        const secsStr = secs.toString().padStart(2, '0')
         const msStr = ms > 0 ? " " + ms + "ms" : "";
 
         // Combine the parts and return the formatted string
-        return `${hrsStr}${minsStr}${secsStr}`.trim();
+        return `${hrs>0?hrsStr+':':''}${minsStr}:${secsStr}`.trim();
       }
 
       function getUpdateProgress() {
-        const progress = document.getElementById('progress');
+        const progress = document.getElementById('progress1');
+        const progress2 = document.getElementById('progress2');
         const playBtn = document.getElementById('playBtn');
         const timeDisplay = document.getElementById('timeDisplay');
 
@@ -182,7 +194,7 @@
           }
 
         return ()=> {
-          console.log('updateProgress')
+          // console.log('updateProgress')
           togglePlayState();
 
           // Get current time and duration, accounting for playback rate
@@ -196,6 +208,8 @@
           // Calculate the percentage of progress
           const percent = (audioPlayerTime / audioPlayerDuration) * 100;
           progress.style.width = percent + '%';
+          // progress2.style.width = percent + '%';
+
 
           // Calculate current time and total time display values
           const currentMinutes = Math.floor(adjustedPlayTime / 60);
@@ -203,9 +217,9 @@
 
           const totalMinutes = Math.floor(adjustedDuration / 60);
           const totalSeconds = Math.floor(adjustedDuration % 60).toString().padStart(2, '0');
-            console.log('pdate the time display')
+            // console.log('pdate the time display')
           // Update the time display
-          timeDisplay.textContent = `${currentMinutes}:${currentSeconds} / ${totalMinutes}:${totalSeconds} (${formatTime(window.TOTAL_TIME / playbackRate)})`;
+          timeDisplay.textContent = `${currentMinutes}:${currentSeconds} / ${totalMinutes}:${totalSeconds} (${formatTime(window.TOTAL_TIME?.[window.CURRENT_PERK] / playbackRate)}/${formatTime(window.TOTAL_TIME.total / playbackRate)})`;
         }
       }
 
@@ -269,7 +283,7 @@
 
         <div class="container">
             <label id="speedLabel" for="speed">Speed 2.0:</label>
-            <input type="range" id="speed" class="speed" min="0.1" max="6" step="0.1" value="2">
+            <input type="range" id="speed" class="speed" min="0.1" max="3" step="0.1" value="2">
         </div>
         <div class="container">
             <label id="playNextLabel" for="playNext">Play Next:</label>
@@ -280,13 +294,14 @@
         <div id="prakim"></div>
 
         <div class="container" id="progressContainer">
-            <div class="progress" id="progress"></div>
+            <div class="progress" id="progress1"></div>
+<!--            <div class="progress" id="progress2"></div>-->
         </div>
 
         <div class="time" id="timeDisplay">0:00 / 0:00</div>
     </div>
 
-    <div id="main"></div>
+    <div id="main" class="tableFixHead"></div>
 </div>
 </BODY>
 
@@ -321,8 +336,8 @@
 
 
   showPrakim();
-  Promise.all([calculateTotalTime(), loadPerk()]).then(([total]) => {
-    window.TOTAL_TIME = total;
+  Promise.all([calculateTotalTime(), loadPerk()]).then(([totals]) => {
+    window.TOTAL_TIME = totals;
     updateProgress()
   });
 
