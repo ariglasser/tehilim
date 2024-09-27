@@ -154,8 +154,16 @@ class Controller {
         num = num % g
         return heb.padEnd(n, GEMATRIA_MAP[g])
       }, '');
-    gematria += "".padEnd(1, GEMATRIA_MAP[Math.floor(num / 10) * 10])
-    gematria +=  "".padEnd(1, GEMATRIA_MAP[num % 10])
+    if (num === 15){
+      gematria += GEMATRIA_MAP[9] + GEMATRIA_MAP[6]
+
+    } else if (num === 16) {
+      gematria += GEMATRIA_MAP[9] + GEMATRIA_MAP[7]
+
+    } else {
+      gematria += "".padEnd(1, GEMATRIA_MAP[Math.floor(num / 10) * 10])
+      gematria += "".padEnd(1, GEMATRIA_MAP[num % 10])
+    }
     return gematria;
   }
 
