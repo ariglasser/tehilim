@@ -20,7 +20,7 @@ body {
 }
 
 table {
-    width: 75vw;
+    /*width: 75vw;*/
     border-collapse: collapse;
 }
 
@@ -49,7 +49,7 @@ td {
     padding: 20px;
 }
 
-#prakim {
+#prakimHeader {
     width: 100%;
     font-size: medium;
     cursor: pointer;
@@ -86,7 +86,7 @@ button {
 
 #progressContainer {
     width: 400px;
-    height: 5px;
+    height: 10px;
     background: #ccc;
     border-radius: 5px;
     /*cursor: pointer;*/
@@ -94,12 +94,19 @@ button {
 }
 
 .progress {
-    height: 100%;
-    background: #007bff;
+    height: 5px;
     border-radius: 5px;
     width: 0;
 }
+#progress1{
+    background: #007bff;
 
+}
+#progress2{
+    width: 5px;
+    background: #ff0000;
+
+}
 .time {
     /*font-size: 12px;*/
     color: #555;
@@ -108,7 +115,17 @@ button {
     font-size: x-small;
     /*width: 60%;*/
 }
-
+input[type=range] {
+    /*margin: 5px 0;*/
+    /*background: #ccc;*/
+    border-radius: 5px;
+    /*height: 5px;*/
+    margin: unset;
+}
+input[type=checkbox]    {
+    margin-right:  0;
+    margin-left:  0;
+}
 .volume {
     margin-left: 10px;
     width: 80px;
@@ -121,7 +138,7 @@ button {
 
 .container {
     display: inline-block;
-}
+]}
 
 label {
     direction: ltr;
