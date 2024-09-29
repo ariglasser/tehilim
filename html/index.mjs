@@ -145,8 +145,7 @@ export class Controller {
     document.querySelectorAll('.perk_header.active').forEach((el) => el.classList.remove('active'));
     document.getElementById(`perk_${perk}`).classList.add('active');
 
-    const html = await this.getPerkTable(perk);
-    this.perkTable.innerHTML = html;
+    this.perkTable.innerHTML = await this.getPerkTable(perk);
     return perk
   }
 
