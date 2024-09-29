@@ -54,9 +54,14 @@ export class Controller {
   _audioPlayer;
   _perkTable;
   _isSound;
+  _config;
+  _isPlayNext;
 
   constructor() {
     this.prakim = new Prakim();
+    if (this.config.d === this.prakim.weekDay && this.config.p){
+      this.prakim.CURRENT = this.config.p
+    }
   }
 
 
@@ -112,6 +117,11 @@ export class Controller {
   get audioPlayer() {
     return this._audioPlayer ?? (this._audioPlayer = document.getElementById('audioPlayer'));
   }
+  const  = document.getElementById('');
+
+  get isPlayNext() {
+    return this._isPlayNext ?? (this._isPlayNext = document.getElementById('isPlayNext'));
+  }
 
   get perkTable() {
     return this._perkTable ?? (this._perkTable = document.getElementById('perkTable'));
@@ -131,7 +141,9 @@ export class Controller {
   }
 
   navigate(perk, withPlay = true) {
+    this.hasPlayed = true;
     perk = this.prakim.setPerk(perk)
+    this.saveConfig();
     this.showPerk(perk);
     this.playPerk(perk, withPlay)
   }
@@ -147,6 +159,32 @@ export class Controller {
 
     this.perkTable.innerHTML = await this.getPerkTable(perk);
     return perk
+  }
+
+  saveConfig() {
+    this._config = {
+      s:this.playBackRateValue,
+      p:this.prakim.perk,
+      n:this.isPlayNext.checked,
+      d:this.prakim.weekDay
+    }
+    const value = JSON.stringify(this._config)
+    document.cookie = `config=${value}; path=/`;
+  }
+
+  get config() {
+    if (!this._config) {
+      const cookies = document.cookie.split(';');
+      let configCookieValue = cookies.find(c => c.trim().startsWith('config='));
+      this._config = {};
+      if (configCookieValue) {
+        configCookieValue = configCookieValue.replace('config=', '');
+        this._config =  JSON.parse(configCookieValue)
+      }
+      this._config.s = this._config.s ?? 1;
+      this._config.n = this._config.n ?? true;
+    }
+    return this._config;
   }
 
   async addListeners() {
@@ -169,9 +207,10 @@ export class Controller {
     const progress2 = document.getElementById('progress2');
     const timeDisplay = document.getElementById('timeDisplay');
     const playBtn = document.getElementById('playBtn');
-    const isPlayNext = document.getElementById('isPlayNext');
     const dropDown = document.getElementById('dropdown');
     dropDown.innerHTML = SVG_DROPDOWN
+    this.playBackRate.value = this.config.s;
+    this.isPlayNext.checked = this.config.n;
 
     let playState;
     const updateProgress= () => {
@@ -212,6 +251,7 @@ export class Controller {
     }
 
     this.isSound.addEventListener('change', (e) => {
+      this.saveConfig();
       if (!e.target.checked) {
         this.audioPlayer.pause();
         this.audioPlayer.currentTime = 0
@@ -221,7 +261,7 @@ export class Controller {
     });
 
     this.audioPlayer.addEventListener('ended', () => {
-        isPlayNext.checked && this.prakim.perk < this.prakim.to && this.navigate(true)
+        this.isPlayNext.checked && this.prakim.perk < this.prakim.to && this.navigate(true)
       });
     this.audioPlayer.addEventListener('timeupdate', updateProgress);
 
@@ -239,10 +279,12 @@ export class Controller {
     this.playBackRate.addEventListener('input', (e) => {
       this.audioPlayer.playbackRate = e.target.value;
       speedLabel.textContent = `Speed ${e.target.value}:`;
+      this.saveConfig();
       if (this.audioPlayer.paused) {
         updateProgress()
       }
     })
+    speedLabel.textContent = `Speed ${this.config.s}:`;
 
     playBtn.addEventListener('click', togglePlayState);
 
@@ -258,14 +300,14 @@ export class Controller {
 
     daysOfWeek.value = this.prakim.weekDay
     this.renderPrakimHeader();
-    this.navigate('FIRST',false);
+    this.navigate(this.prakim.CURRENT ?? 'FIRST',false);
     await this.prakim.wait();
     updateProgress()
     daysOfWeek.addEventListener('change', async ()=> {
       this.prakim.weekDay = daysOfWeek.selectedIndex;
       this.audioPlayer.pause()
       this.renderPrakimHeader();
-      this.navigate('FIRST',false);
+      this.navigate(this.prakim.CURRENT ?? 'FIRST',false);
       await this.prakim.wait();
       updateProgress()
     });
