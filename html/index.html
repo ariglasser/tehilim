@@ -22,20 +22,41 @@
 
         <button class='btn' id="lastButton"></button>
 
-        <div class="container">
-            <label id="volumeLabel" for="volume">Volume 1:</label>
-            <input type="range" id="volume" class="volume" min="0" max="1" step="0.1" value="1">
-            <input type="checkbox" id="isSound" checked>
+
+
+        <div class="dropdown">
+            <button class='btn' id="dropdown">
+            </button>
+          <div class="dropdown-content">
+                <div class="container">
+                    <label id="volumeLabel" for="volume">Volume 1:</label>
+                    <input type="range" id="volume" class="volume" min="0" max="1" step="0.1" value="1">
+                    <input type="checkbox" id="isSound" checked>
+                </div>
+
+                <div class="container">
+                    <label id="speedLabel" for="playBackRate">Speed 2.0:</label>
+                    <input type="range" id="playBackRate" class="speed" min="0.1" max="3" step="0.1" value="2">
+                </div>
+                <div class="container">
+                    <label id="isPlayNextLabel" for="isPlayNext">Play Next:</label>
+                    <input type="checkbox" id="isPlayNext" checked>
+                </div>
+                <div class="container">
+                    <label for="daysOfWeek">Day:</label>
+                    <select id="daysOfWeek" name="daysOfWeek">
+                        <option value="0">ראשון</option>
+                        <option value="1">שני</option>
+                        <option value="2">שלישי</option>
+                        <option value="3">רביעי</option>
+                        <option value="4">חמישי</option>
+                        <option value="5">שישי</option>
+                        <option value="6">שבת</option>
+                    </select>
+                </div>
+            </div>
         </div>
 
-        <div class="container">
-            <label id="speedLabel" for="playBackRate">Speed 2.0:</label>
-            <input type="range" id="playBackRate" class="speed" min="0.1" max="3" step="0.1" value="2">
-        </div>
-        <div class="container">
-            <label id="isPlayNextLabel" for="isPlayNext">Play Next:</label>
-            <input type="checkbox" id="isPlayNext" checked>
-        </div>
         <audio id="audioPlayer"></audio>
 
 
@@ -53,7 +74,9 @@
 </div>
 </BODY>
 <script type="module">
-  import { controller } from './index.mjs';
-    controller.addListeners();
+  import { Controller } from './index.mjs';
+  const controller = new Controller()
+
+  controller.addListeners();
 </script>
 </HTML>

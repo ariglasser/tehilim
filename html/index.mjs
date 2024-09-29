@@ -1,8 +1,7 @@
-const GEMATRIA_MAP = {
-  0: '', 1: 'א', 2: 'ב', 3: 'ג', 4: 'ד', 5: 'ה', 6: 'ו', 7: 'ז', 8: 'ח', 9: 'ט',
-  10: 'י', 20: 'כ', 30: 'ל', 40: 'מ', 50: 'נ', 60: 'ס', 70: 'ע', 80: 'פ',
-  90: 'צ', 100: 'ק', 200: 'ר', 300: 'ש', 400: 'ת'
-};
+
+import {getGematria} from "./gematria.mjs";
+import {Prakim} from "./prakim.mjs";
+import {loadPerkData, getPerkMp3Name} from "./resources.mjs";
 
 const SVG_PLAY = `
  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="black">
@@ -14,6 +13,13 @@ const SVG_PAUSE = `
  <rect x="6" y="4" width="4" height="16" />
  <rect x="14" y="4" width="4" height="16" />
  </svg>`
+
+const SVG_DROPDOWN = `   <svg viewBox="0 0 24 26" fill="black" xmlns="http://www.w3.org/2000/svg">
+                    <rect x='3' y="18" width="20" height="3"  fill="black"></rect>
+                    <rect x='3' y="12" width="20" height="3"  fill="black"></rect>
+                    <rect x='3' y="6"  width="20" height="3"  fill="black"></rect>
+                </svg>
+`
 
 const SVG_NAVIGATE_BUTTONS=[
     `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor"
@@ -41,158 +47,33 @@ const SVG_NAVIGATE_BUTTONS=[
   ]; //['⏮','⏪','⏯','⏩','⏭
 //'⏮','⏪','⏯','⏩','⏭'
 
-class Controller {
-  _cachedPerkHTMLs;
-  _todaysPerkTimes;
-  _todaysPrakim;
-  _currentPerk;
+export class Controller {
+  prakim;
+
   _playBackRate;
   _audioPlayer;
   _perkTable;
   _isSound;
 
-  get todaysPrakim() {
-    if (!this._todaysPrakim) {
-      const today = new Date();
-      const weekday = today.getDay();
-      const dailyFromTo = [[1, 29], [30, 50], [51, 72], [73, 89], [90, 106], [107, 119],[120, 150]];
-      const [from, to] = dailyFromTo[weekday];
-      this._todaysPrakim = Array.from({length: to - from + 1}, ((_, i) => from + i));
-      this._todaysPrakim.from = from;
-      this._todaysPrakim.to = to;
-    }
-    return this._todaysPrakim;
+  constructor() {
+    this.prakim = new Prakim();
   }
 
-  get currentPerk() {
-    if (!this._currentPerk) {
-      const prakim = this.todaysPrakim;
-      let current;
-      this._currentPerk = {
-        FIRST: prakim.from,
-        LAST: prakim.to,
-        get NEXT() {
-          current = !current ? prakim.from : Math.min(prakim.to, current + 1);
-          return current;
-        },
-        get PREVIOUS() {
-          current = !current ? prakim.from : Math.max(prakim.from, current - 1);
-          return current;
-        },
-        get CURRENT() {
-          return current;
-        },
-        set CURRENT(perk) {
-          perk = perk ?? 'FIRST';
-          if (perk === true) {
-            perk = 'NEXT'
-          }
-          if (perk === false) {
-            perk = 'PREVIOUS'
-          }
-          if (isNaN(perk)) {
-            current = this[perk.toUpperCase()];
-            if (!current){
-              console.log(`perk ${perk} not found`)
-            }
-          } else {
-            current = Math.min(prakim.to, perk);
-            current = Math.max(prakim.from, perk);
-          }
-        },
-        set perk(perk) {
-          this.CURRENT = perk;
-        },
-        get perk() {
-          return this.CURRENT
-        },
-        setPerk(perk){
-          this.CURRENT = perk;
-          return this.CURRENT
-        }
-      };
-    }
-    return this._currentPerk;
-  }
-
-  get todaysPerkTimes() {
-    if (!this._todaysPerkTimes) {
-      this._todaysPerkTimes = {total: 0};
-      const audios = this.todaysPrakim.map((perk)=>this.getPerkMp3Audio(perk))
-      this._todaysPerkTimes.wait = Promise.all(audios)
-        .then((audios) =>
-          audios.map((audio) => audio.duration))
-        .then((durations) => {
-          return durations.reduce((acc, duration,i) => {
-            acc[i + this.todaysPrakim.from] = acc.total;
-            acc.total += duration;
-            return acc;
-          }, {total: 0})
-
-        })
-        .then((totals) => this._todaysPerkTimes = totals);
-    }
-    return this._todaysPerkTimes;
-  }
-
-  get cachedPerkHTMLs() {
-    return this._cachedPerkHTMLs ?? (this._cachedPerkHTMLs = {});
-  }
-
-  getPerkMp3Name(perk) {
-    return `./mp3/${perk.toString().padStart(3, '0')}.mp3`;
-  }
-
-  getPerkDataName(perk) {
-    return `./prakim/${perk.toString().padStart(3, '0')}.json`;
-  }
-
-  getGematria(num) {
-    let gematria = [400, 300, 200, 100]
-      .reduce((heb, g) => {
-        const n = Math.floor(num / g)
-        num = num % g
-        return heb.padEnd(n, GEMATRIA_MAP[g])
-      }, '');
-    if (num === 15){
-      gematria += GEMATRIA_MAP[9] + GEMATRIA_MAP[6]
-
-    } else if (num === 16) {
-      gematria += GEMATRIA_MAP[9] + GEMATRIA_MAP[7]
-
-    } else {
-      gematria += "".padEnd(1, GEMATRIA_MAP[Math.floor(num / 10) * 10])
-      gematria += "".padEnd(1, GEMATRIA_MAP[num % 10])
-    }
-    return gematria;
-  }
 
   renderPrakimHeader() {
     const prakimHeader = document.getElementById('prakimHeader');
     prakimHeader.innerHTML=
-      this.todaysPrakim
-        .map(p => `<span id="perk_${p}" class="perk_header" onclick=this.navigate(${p})> ${this.getGematria(p)}</span>`)
+      this.prakim.prakim
+        .map(p => `<span id="perk_${p}" class="perk_header"> ${getGematria(p)}</span>`)
         .join(',');
-  }
 
-  getPerkMp3Audio(perk) {
-    return new Promise((resolve, reject) => {
-      const audio = new Audio(this.getPerkMp3Name(perk));
-      audio.addEventListener('loadedmetadata', () => {
-        resolve(audio)
-      }); //e.target.duration
-      audio.addEventListener('error', (e)=>{
-        console.error(`error loading ${perk}`,e)
-        reject(e)
-      });
-      audio.load();  // Trigger loading of the audio file
+    document.querySelectorAll('.perk_header').forEach((el,i) => {
+      el.dataset.perek = this.prakim.perkAt(i);
+      el.addEventListener('click', (e) => this.navigate(e.currentTarget.dataset.perek*1));
     });
   }
 
 
-  async loadPerkData(perk) {
-    return (await fetch(this.getPerkDataName(perk))).json();
-  }
 
   generatePerkTableHTML(perk, lines) {
     const rows = lines.map(line => `
@@ -203,7 +84,7 @@ class Controller {
     );
     const tHead = `
         <thead>
-            <tr><th colspan="2">פרק ${this.getGematria(perk)} </th></tr>
+            <tr><th colspan="2">פרק ${getGematria(perk)} </th></tr>
        </thead>`
 
     return `
@@ -237,28 +118,25 @@ class Controller {
   }
 
   async getPerkTable(perk) {
-    if (!this.cachedPerkHTMLs[perk]) {
-      this.cachedPerkHTMLs[perk] = this.loadPerkData(perk)
-        .then((data) => this.generatePerkTableHTML(perk, data.lines));
-    }
-    return this.cachedPerkHTMLs[perk];
+    const data = await loadPerkData(perk)
+    return this.generatePerkTableHTML(perk, data.lines);
   }
 
-  playPerk(perk) {
-      this.audioPlayer.src = this.getPerkMp3Name(perk);
+  playPerk(perk, withPlay=true) {
+      this.audioPlayer.src = getPerkMp3Name(perk);
       this.audioPlayer.playbackRate = this.playBackRateValue;
-      if(this.isSound.checked) {
+      if(withPlay && this.isSound.checked) {
         this.audioPlayer.play();
     }
   }
 
-  navigate(perk) {
-    perk = this.currentPerk.setPerk(perk)
+  navigate(perk, withPlay = true) {
+    perk = this.prakim.setPerk(perk)
     this.showPerk(perk);
-    this.playPerk(perk)
+    this.playPerk(perk, withPlay)
   }
 
-  showPerk(perk) {
+  async showPerk(perk) {
     window.scroll({
       top: 0,
       // behavior: 'smooth' // Optional: Use 'auto' for instant scrolling
@@ -267,13 +145,12 @@ class Controller {
     document.querySelectorAll('.perk_header.active').forEach((el) => el.classList.remove('active'));
     document.getElementById(`perk_${perk}`).classList.add('active');
 
-    this.getPerkTable(perk)
-      .then(html => this.perkTable.innerHTML = html)
-      .catch(console.error);
+    const html = await this.getPerkTable(perk);
+    this.perkTable.innerHTML = html;
     return perk
   }
 
-  addListeners() {
+  async addListeners() {
     const formatTime = (seconds)=> {
       seconds = isNaN(seconds) ? 0 : seconds;
 
@@ -294,10 +171,12 @@ class Controller {
     const timeDisplay = document.getElementById('timeDisplay');
     const playBtn = document.getElementById('playBtn');
     const isPlayNext = document.getElementById('isPlayNext');
+    const dropDown = document.getElementById('dropdown');
+    dropDown.innerHTML = SVG_DROPDOWN
 
     let playState;
 
-    const updateProgress= () =>{
+    const updateProgress= () => {
       if (playState !== this.audioPlayer.paused) {
         playState = this.audioPlayer.paused;
         playBtn.innerHTML = playState? SVG_PLAY : SVG_PAUSE
@@ -309,12 +188,12 @@ class Controller {
 
       const adjustedDuration = audioPlayerDuration / speed;
       const adjustedPlayTime = audioPlayerTime / speed;
-      const totalAdjustedDuration = this.todaysPerkTimes.total / speed;
-      const totalAdjustedPlayTime = this.todaysPerkTimes[this.currentPerk.perk] / speed;
+      const totalAdjustedDuration = this.prakim.totalTime / speed;
+      const totalAdjustedPlayTime = this.prakim.perkStartAt / speed;
 
       // Calculate the percentage of progress
       const percent1 = ((audioPlayerTime / audioPlayerDuration) * 100) || 0;
-      const percent2 = (( (audioPlayerTime + this.todaysPerkTimes[this.currentPerk.perk])/this.todaysPerkTimes.total) * 100) || 0;
+      const percent2 = (( (audioPlayerTime + this.prakim.perkStartAt )/this.prakim.totalTime) * 100) || 0;
       progress1.style.width = percent1 + '%';
       progress2.style.width = percent2 + '%';
       timeDisplay.textContent = `${formatTime(adjustedPlayTime)
@@ -326,7 +205,7 @@ class Controller {
     const togglePlayState =()=>{
       this.isSound.checked = true
       if (this.audioPlayer.paused) {
-        this.currentPerk.perk
+        this.prakim.perk
           ? this.audioPlayer.play()
           : this.navigate("FIRST");
       } else {
@@ -338,7 +217,7 @@ class Controller {
       if (!e.target.checked) {
         this.audioPlayer.pause();
         this.audioPlayer.currentTime = 0
-      } else if(this.currentPerk.perk){
+      } else if(this.prakim.perk){
         this.audioPlayer.play();
       }
     });
@@ -351,11 +230,11 @@ class Controller {
     });
     this.audioPlayer.addEventListener('timeupdate', updateProgress);
 
-
     const volumeControl = document.getElementById('volume');
     const volumeLabel = document.getElementById('volumeLabel');
 
     const speedLabel = document.getElementById('speedLabel');
+    const daysOfWeek = document.getElementById('daysOfWeek');
 
     volumeControl.addEventListener('input', (e) => {
       this.audioPlayer.volume = e.target.value;
@@ -381,21 +260,24 @@ class Controller {
         button.dataset.action = navigateTo[i];
         button.addEventListener('click', (e) => this.navigate(e.currentTarget.dataset.action));
       });
+
+
+    daysOfWeek.value = this.prakim.weekDay
     this.renderPrakimHeader();
-
-    this.todaysPerkTimes.wait?.then(()=>updateProgress()) ?? updateProgress()
-
-    document.querySelectorAll('.perk_header').forEach((el,i) => {
-      el.dataset.perek = this.todaysPrakim[i];
-      el.addEventListener('click', (e) => this.navigate(e.currentTarget.dataset.perek*1));
-
+    this.navigate('FIRST',false);
+    await this.prakim.wait();
+    updateProgress()
+    daysOfWeek.addEventListener('change', async ()=> {
+      this.prakim.weekDay = daysOfWeek.selectedIndex;
+      this.audioPlayer.pause()
+      this.renderPrakimHeader();
+      this.navigate('FIRST',false);
+      await this.prakim.wait();
+      updateProgress()
     });
-
-    this.showPerk(this.todaysPrakim.from);
   }
 }
 
-export const controller = new Controller()
 
 
 
