@@ -46,7 +46,7 @@ td {
 }
 
 .row_num {
-    /*padding: 20px;*/
+    padding-left: 20px;
 }
 
 #prakimHeader {
@@ -151,7 +151,7 @@ label {
 
 .active {
     color: red;
-    font-size: x-large;
+    font-size: xx-large;
 }
 
 /**/
