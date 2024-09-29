@@ -174,7 +174,6 @@ export class Controller {
     dropDown.innerHTML = SVG_DROPDOWN
 
     let playState;
-
     const updateProgress= () => {
       if (playState !== this.audioPlayer.paused) {
         playState = this.audioPlayer.paused;
@@ -221,12 +220,9 @@ export class Controller {
       }
     });
 
-    // this.audioPlayer.addEventListener('play',togglePlayPause);
-    // this.audioPlayer.addEventListener('pause',togglePlayPause);
     this.audioPlayer.addEventListener('ended', () => {
-      isPlayNext.checked && this.navigate(true)
-        // : togglePlayPause()
-    });
+        isPlayNext.checked && this.prakim.perk < this.prakim.to && this.navigate(true)
+      });
     this.audioPlayer.addEventListener('timeupdate', updateProgress);
 
     const volumeControl = document.getElementById('volume');
@@ -255,7 +251,6 @@ export class Controller {
       .forEach((buttonId,i)=>{
         const button = document.getElementById(buttonId);
         button.innerHTML = SVG_NAVIGATE_BUTTONS[i];
-        // button.setAttribute('data-action', navigateTo[i]);
         button.dataset.action = navigateTo[i];
         button.addEventListener('click', (e) => this.navigate(e.currentTarget.dataset.action));
       });
