@@ -169,8 +169,12 @@ export class Controller {
       d:this.prakim.weekDay
     }
     const value = JSON.stringify(this._config)
-    document.cookie = `config=${value}; path=/`;
-  }
+    const date = new Date();
+    date.setTime(date.getTime() + (100 * 24 * 60 * 60 * 1000))
+    document.cookie = `config=${value}; expires=${date.toUTCString()}; path=/`;
+
+
+    }
 
   get config() {
     if (!this._config) {

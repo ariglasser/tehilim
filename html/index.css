@@ -138,7 +138,7 @@ input[type=checkbox]    {
 }
 
 .container {
-    display: inline-block;
+    display: block;
 ]}
 
 label {

@@ -5,9 +5,10 @@
     <META HTTP-EQUIV="Content-Type" CONTENT="text/html; CHARSET=utf-8">
 
     <TITLE>תהילים יומי</TITLE>
-
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="./images/harp2-192.png">
+    <meta name="theme-color" content="#ffffff">
     <link rel="stylesheet" href="./index.css" type="text/css">
-
 </HEAD>
 <BODY class="body">
 <div class="hebrew">
@@ -79,5 +80,44 @@
   const controller = new Controller()
 
   controller.addListeners();
+</script>
+<script>
+  // Register the service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./serviceWorker.mjs')
+      .then(registration => {
+        console.log('Service Worker registered with scope:', registration.scope);
+      })
+      .catch(error => {
+        console.error('Service Worker registration failed:', error);
+      });
+  }
+
+  // Prompt user to install the PWA
+  let deferredPrompt;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    console.log('beforeinstallprompt fired');
+    // Prevent the mini-infobar from appearing on mobile
+    e.preventDefault();
+    // Stash the event so it can be triggered later.
+    deferredPrompt = e;
+    // Show your custom install button here
+    const installButton = document.createElement('button');
+    installButton.textContent = 'Install PWA';
+    installButton.onclick = () => {
+      // Show the install prompt
+      deferredPrompt.prompt();
+      // Wait for the user to respond to the prompt
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        } else {
+          console.log('User dismissed the install prompt');
+        }
+        deferredPrompt = null;
+      });
+    };
+    document.body.appendChild(installButton);
+  });
 </script>
 </HTML>
