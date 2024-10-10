@@ -56,6 +56,12 @@ export class Controller {
   _isSound;
   _config;
   _isPlayNext;
+  _progress1;
+  _progress2;
+  _timeDisplay;
+  _playBtn;
+  playState;
+  _perkData;
 
   constructor() {
     this.prakim = new Prakim();
@@ -81,8 +87,8 @@ export class Controller {
 
 
   generatePerkTableHTML(perk, lines) {
-    const rows = lines.map(line => `
-        <tr>
+    const rows = lines.map((line, i) => `
+        <tr id="row_${i + 1}" class="row">
          <td class="row_num">${line.verse}</td>
          <td class="row_txt">${line.text}</td>
        </tr>`
@@ -99,8 +105,22 @@ export class Controller {
                 ${rows.join('\n')}
             </tbody>   
         </table>`;
+  }
+
+  setEstimatedLineTime(lines, totalDuration) {
+    //
+    //   lines.forEach(line => {
+    //     const lineDuration = (line.wordCount / totalWordCount) * totalDuration;
+    //     line.start = currentTime;
+    //     line.end = currentTime + lineDuration;
+    //     currentTime += lineDuration;
+    //   });
+    // }
+    // return this._estimatedLineTime
 
   }
+
+
 
   get playBackRate() {
     return (this._playBackRate ?? (this._playBackRate = document.getElementById('playBackRate')));
@@ -123,13 +143,25 @@ export class Controller {
     return this._isPlayNext ?? (this._isPlayNext = document.getElementById('isPlayNext'));
   }
 
-  get perkTable() {
-    return this._perkTable ?? (this._perkTable = document.getElementById('perkTable'));
+  get progress1() {
+    return this._progress1 ?? (this._progress1 = document.getElementById('progress1'));
   }
 
-  async getPerkTable(perk) {
-    const data = await loadPerkData(perk)
-    return this.generatePerkTableHTML(perk, data.lines);
+  get progress2() {
+    return this._progress2 ?? (this._progress2 = document.getElementById('progress2'));
+  }
+
+  get timeDisplay() {
+    return this._timeDisplay ?? (this._timeDisplay = document.getElementById('timeDisplay'));
+  }
+
+  get playBtn() {
+    return this._playBtn ?? (this._playBtn = document.getElementById('playBtn'));
+  }
+
+
+  get perkTable() {
+    return this._perkTable ?? (this._perkTable = document.getElementById('perkTable'));
   }
 
   playPerk(perk, withPlay=true) {
@@ -149,6 +181,7 @@ export class Controller {
   }
 
   async showPerk(perk) {
+    //log the current scroll position
     window.scroll({
       top: 0,
       // behavior: 'smooth' // Optional: Use 'auto' for instant scrolling
@@ -157,7 +190,10 @@ export class Controller {
     document.querySelectorAll('.perk_header.active').forEach((el) => el.classList.remove('active'));
     document.getElementById(`perk_${perk}`).classList.add('active');
 
-    this.perkTable.innerHTML = await this.getPerkTable(perk);
+    const data = await loadPerkData(perk)
+    const perkTable = this.generatePerkTableHTML(perk, data.lines);
+    this._perkData = data;
+    this.perkTable.innerHTML = perkTable;
     return perk
   }
 
@@ -166,6 +202,7 @@ export class Controller {
       s:this.playBackRateValue,
       p:this.prakim.perk,
       n:this.isPlayNext.checked,
+      l:this.isSound.checked,
       d:this.prakim.weekDay
     }
     const value = JSON.stringify(this._config)
@@ -187,87 +224,118 @@ export class Controller {
       }
       this._config.s = this._config.s ?? 1;
       this._config.n = this._config.n ?? true;
+      this._config.l = this._config.n ?? true;
     }
     return this._config;
   }
 
-  async addListeners() {
-    const formatTime = (seconds)=> {
-      seconds = isNaN(seconds) ? 0 : seconds;
+  formatTime(seconds) {
+    seconds = isNaN(seconds) ? 0 : seconds;
 
-      const hrs = Math.floor(seconds / 3600);
-      const mins = Math.floor((seconds % 3600) / 60);
-      const secs = Math.floor(seconds % 60);
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
 
-      // Format the time parts as strings with leading zeros if needed
-      const hrsStr = hrs.toString().padStart(2, '0')
-      const minsStr = mins.toString().padStart(2, '0')
-      const secsStr = secs.toString().padStart(2, '0')
+    // Format the time parts as strings with leading zeros if needed
+    const hrsStr = hrs.toString().padStart(2, '0')
+    const minsStr = mins.toString().padStart(2, '0')
+    const secsStr = secs.toString().padStart(2, '0')
 
-      // Combine the parts and return the formatted string
-      return `${hrs > 0 ? hrsStr + ':' : ''}${minsStr}:${secsStr}`.trim();
+    // Combine the parts and return the formatted string
+    return `${hrs > 0 ? hrsStr + ':' : ''}${minsStr}:${secsStr}`.trim();
+  }
+
+  updateProgress () {
+    if (this.playState !== this.audioPlayer.paused) {
+      this.playState = this.audioPlayer.paused;
+      this.playBtn.innerHTML = this.playState? SVG_PLAY : SVG_PAUSE
     }
-    const progress1 = document.getElementById('progress1');
-    const progress2 = document.getElementById('progress2');
-    const timeDisplay = document.getElementById('timeDisplay');
-    const playBtn = document.getElementById('playBtn');
-    const dropDown = document.getElementById('dropdown');
-    dropDown.innerHTML = SVG_DROPDOWN
+
+    const audioPlayerTime = this.audioPlayer.currentTime;
+    const audioPlayerDuration = this.audioPlayer.duration;
+    const speed = this.playBackRateValue;
+
+    const adjustedDuration = audioPlayerDuration / speed;
+    const adjustedPlayTime = audioPlayerTime / speed;
+    const totalAdjustedDuration = this.prakim.totalTime / speed;
+    const totalAdjustedPlayTime = this.prakim.perkStartAt / speed;
+
+    // if (this._perkData.lines)
+    //here perkTable
+    //here perkTable
+
+    // Calculate the percentage of progress
+    const percent1 = ((audioPlayerTime / audioPlayerDuration) * 100) || 0;
+    const percent2 = (((audioPlayerTime + this.prakim.perkStartAt )/this.prakim.totalTime) * 100) || 0;
+    if (this._perkData && adjustedPlayTime > 0) {
+      if (adjustedPlayTime <= 0.2 || !this._perkData.currentLine) {
+        this._perkData.currentLine = 0;
+      }
+      let selectedRow = undefined;
+      let previousSelectedRow = undefined;
+      for(let i=this._perkData.currentLine;i<this._perkData.lines.length && !selectedRow; i++) {
+        if (this._perkData.lines[i].startTime<= audioPlayerTime && audioPlayerTime < this._perkData.lines[i].endTime){
+          if(this._perkData.currentLine !== i){
+            previousSelectedRow = `row_${this._perkData.currentLine +1}`;
+            this._perkData.currentLine = i;
+            selectedRow = `row_${i+1}`
+          } else {
+            selectedRow = `row_${i+1 }`
+          }
+        }
+      }
+      if (previousSelectedRow){
+        document.getElementById(previousSelectedRow).classList.remove('highlight');
+      }
+      if (selectedRow){
+        document.getElementById(selectedRow).scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById(selectedRow).classList.add('highlight');
+      }
+    }
+
+    this.progress1.style.width = percent1 + '%';
+    this.progress2.style.width = percent2 + '%';
+    this.timeDisplay.textContent = `${this.formatTime(adjustedPlayTime)
+    }/${this.formatTime(adjustedDuration)
+    } (${this.formatTime(totalAdjustedPlayTime)
+    }/${this.formatTime(totalAdjustedDuration )})`;
+  }
+
+  playSoundChanged(){
+    this.saveConfig();
+    if (!this.isSound.checked) {
+      this.audioPlayer.pause();
+      this.audioPlayer.currentTime = 0
+    } else if(this.prakim.perk){
+      this.audioPlayer.play();
+    }
+  }
+
+   togglePlayState() {
+    this.isSound.checked = true
+    if (this.audioPlayer.paused) {
+      this.prakim.perk
+        ? this.audioPlayer.play()
+        : this.navigate("FIRST");
+    } else {
+      this.audioPlayer.pause();
+    }
+  }
+
+  onPerkEnd(){
+    this.isPlayNext.checked && this.prakim.perk < this.prakim.to && this.navigate(true)
+  }
+
+  async addListeners() {
     this.playBackRate.value = this.config.s;
     this.isPlayNext.checked = this.config.n;
+    this.isSound.checked = this.config.l;
 
-    let playState;
-    const updateProgress= () => {
-      if (playState !== this.audioPlayer.paused) {
-        playState = this.audioPlayer.paused;
-        playBtn.innerHTML = playState? SVG_PLAY : SVG_PAUSE
-      }
+    document.getElementById('dropdown').innerHTML = SVG_DROPDOWN
 
-      const audioPlayerTime = this.audioPlayer.currentTime;
-      const audioPlayerDuration = this.audioPlayer.duration;
-      const speed = this.playBackRateValue;
-
-      const adjustedDuration = audioPlayerDuration / speed;
-      const adjustedPlayTime = audioPlayerTime / speed;
-      const totalAdjustedDuration = this.prakim.totalTime / speed;
-      const totalAdjustedPlayTime = this.prakim.perkStartAt / speed;
-
-      // Calculate the percentage of progress
-      const percent1 = ((audioPlayerTime / audioPlayerDuration) * 100) || 0;
-      const percent2 = (( (audioPlayerTime + this.prakim.perkStartAt )/this.prakim.totalTime) * 100) || 0;
-      progress1.style.width = percent1 + '%';
-      progress2.style.width = percent2 + '%';
-      timeDisplay.textContent = `${formatTime(adjustedPlayTime)
-      }/${formatTime(adjustedDuration)
-      } (${formatTime(totalAdjustedPlayTime)
-      }/${formatTime(totalAdjustedDuration )})`;
-    }
-
-    const togglePlayState =()=>{
-      this.isSound.checked = true
-      if (this.audioPlayer.paused) {
-        this.prakim.perk
-          ? this.audioPlayer.play()
-          : this.navigate("FIRST");
-      } else {
-        this.audioPlayer.pause();
-      }
-    }
-
-    this.isSound.addEventListener('change', (e) => {
-      this.saveConfig();
-      if (!e.target.checked) {
-        this.audioPlayer.pause();
-        this.audioPlayer.currentTime = 0
-      } else if(this.prakim.perk){
-        this.audioPlayer.play();
-      }
-    });
-
-    this.audioPlayer.addEventListener('ended', () => {
-        this.isPlayNext.checked && this.prakim.perk < this.prakim.to && this.navigate(true)
-      });
-    this.audioPlayer.addEventListener('timeupdate', updateProgress);
+    this.isSound.addEventListener('change', (e) => this.playSoundChanged());
+    this.audioPlayer.addEventListener('ended', () => this.onPerkEnd());
+    this.audioPlayer.addEventListener('timeupdate', ()=>this.updateProgress());
 
     const volumeControl = document.getElementById('volume');
     const volumeLabel = document.getElementById('volumeLabel');
@@ -285,12 +353,12 @@ export class Controller {
       speedLabel.textContent = `Speed ${e.target.value}:`;
       this.saveConfig();
       if (this.audioPlayer.paused) {
-        updateProgress()
+        this.updateProgress()
       }
     })
     speedLabel.textContent = `Speed ${this.config.s}:`;
 
-    playBtn.addEventListener('click', togglePlayState);
+    this.playBtn.addEventListener('click', ()=>this.togglePlayState());
 
     const navigateTo = ["FIRST", "PREVIOUS", "NEXT", "LAST"];
     ['firstButton','prevButton','nextButton','lastButton']
@@ -306,14 +374,14 @@ export class Controller {
     this.renderPrakimHeader();
     this.navigate(this.prakim.CURRENT ?? 'FIRST',false);
     await this.prakim.wait();
-    updateProgress()
+    this.updateProgress()
     daysOfWeek.addEventListener('change', async ()=> {
       this.prakim.weekDay = daysOfWeek.selectedIndex;
       this.audioPlayer.pause()
       this.renderPrakimHeader();
       this.navigate(this.prakim.CURRENT ?? 'FIRST',false);
       await this.prakim.wait();
-      updateProgress()
+      this.updateProgress()
     });
   }
 }

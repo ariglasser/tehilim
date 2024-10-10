@@ -182,3 +182,7 @@ label {
 .dropdown:hover .dropdown-content {
     display: block;
 }
+
+.highlight {
+    color: red;
+}

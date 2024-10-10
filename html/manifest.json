@@ -1,6 +1,6 @@
 {
-  "name": "tehilim PWA",
-  "short_name": "tehilim",
+  "name": "תהילים PWA",
+  "short_name": "תהילים",
   "start_url": "tehlim/html/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
