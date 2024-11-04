@@ -349,6 +349,20 @@ export class Controller {
       await this.prakim.wait();
       this.updateProgress()
     });
+
+
+    const progressBar = document.getElementById('progressContainer');
+    progressBar.addEventListener('click', (event) => {
+      const progressBarWidth =  progressBar.clientWidth;
+      const clickPosition = event.target.clientWidth - event.offsetX;
+      const clickPercentage = (clickPosition / progressBarWidth) * 100;
+
+
+      if(this.audioPlayer.readyState >= 2) {
+        this.audioPlayer.currentTime = (clickPercentage / 100) * this.audioPlayer.duration;
+      }
+
+    });
   }
 }
 
