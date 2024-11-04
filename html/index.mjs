@@ -1,6 +1,7 @@
 
 import {getGematria} from "./gematria.mjs";
 import {Prakim} from "./prakim.mjs";
+import {Perk} from "./perk.mjs";
 import {loadPerkData, getPerkMp3Name} from "./resources.mjs";
 
 const SVG_PLAY = `
@@ -84,28 +85,13 @@ export class Controller {
     });
   }
 
+  showRow(rowNumber) {
+    this._perkData.setLineTimes(rowNumber, this.audioPlayer.currentTime);
 
-
-  generatePerkTableHTML(perk, lines) {
-    const rows = lines.map((line, i) => `
-        <tr id="row_${i + 1}" class="row">
-         <td class="row_num">${line.verse}</td>
-         <td class="row_txt">${line.text}</td>
-       </tr>`
-    );
-    const tHead = `
-        <thead>
-            <tr><th colspan="2">פרק ${getGematria(perk)} </th></tr>
-       </thead>`
-
-    return `
-        <table>
-            ${tHead}
-            <tbody>
-                ${rows.join('\n')}
-            </tbody>   
-        </table>`;
   }
+
+
+
 
   setEstimatedLineTime(lines, totalDuration) {
     //
@@ -191,9 +177,12 @@ export class Controller {
     document.getElementById(`perk_${perk}`).classList.add('active');
 
     const data = await loadPerkData(perk)
-    const perkTable = this.generatePerkTableHTML(perk, data.lines);
-    this._perkData = data;
-    this.perkTable.innerHTML = perkTable;
+    if (this._perkData) {
+      this._perkData.save();
+    }
+    this._perkData = new Perk(perk, data);
+    this.perkTable.innerHTML = this._perkData.generatePerkTableHTML();
+    [...document.getElementsByClassName('row')].forEach((el,i) => el.addEventListener('click', () => this.showRow(i)));
     return perk
   }
 
@@ -260,37 +249,12 @@ export class Controller {
     const totalAdjustedDuration = this.prakim.totalTime / speed;
     const totalAdjustedPlayTime = this.prakim.perkStartAt / speed;
 
-    // if (this._perkData.lines)
-    //here perkTable
-    //here perkTable
 
     // Calculate the percentage of progress
     const percent1 = ((audioPlayerTime / audioPlayerDuration) * 100) || 0;
     const percent2 = (((audioPlayerTime + this.prakim.perkStartAt )/this.prakim.totalTime) * 100) || 0;
-    if (this._perkData && adjustedPlayTime > 0) {
-      if (adjustedPlayTime <= 0.2 || !this._perkData.currentLine) {
-        this._perkData.currentLine = 0;
-      }
-      let selectedRow = undefined;
-      let previousSelectedRow = undefined;
-      for(let i=this._perkData.currentLine;i<this._perkData.lines.length && !selectedRow; i++) {
-        if (this._perkData.lines[i].startTime<= audioPlayerTime && audioPlayerTime < this._perkData.lines[i].endTime){
-          if(this._perkData.currentLine !== i){
-            previousSelectedRow = `row_${this._perkData.currentLine +1}`;
-            this._perkData.currentLine = i;
-            selectedRow = `row_${i+1}`
-          } else {
-            selectedRow = `row_${i+1 }`
-          }
-        }
-      }
-      if (previousSelectedRow){
-        document.getElementById(previousSelectedRow).classList.remove('highlight');
-      }
-      if (selectedRow){
-        document.getElementById(selectedRow).scrollIntoView({ behavior: 'smooth', block: 'center' });
-        document.getElementById(selectedRow).classList.add('highlight');
-      }
+    if (this._perkData) {
+      this._perkData.selectLineAtTime(audioPlayerTime);
     }
 
     this.progress1.style.width = percent1 + '%';
@@ -310,6 +274,7 @@ export class Controller {
       this.audioPlayer.play();
     }
   }
+
 
    togglePlayState() {
     this.isSound.checked = true
@@ -332,6 +297,7 @@ export class Controller {
     this.isSound.checked = this.config.l;
 
     document.getElementById('dropdown').innerHTML = SVG_DROPDOWN
+    document.getElementById('downloadTimes').addEventListener('click',()=> this._perkData.downloadFile());
 
     this.isSound.addEventListener('change', (e) => this.playSoundChanged());
     this.audioPlayer.addEventListener('ended', () => this.onPerkEnd());
