@@ -299,7 +299,7 @@ export class Controller {
     document.getElementById('dropdown').innerHTML = SVG_DROPDOWN
     document.getElementById('downloadTimes').addEventListener('click',()=> this._perkData.downloadFile());
 
-    this.isSound.addEventListener('change', (e) => this.playSoundChanged());
+    this.isSound.addEventListener('change', () => this.playSoundChanged());
     this.audioPlayer.addEventListener('ended', () => this.onPerkEnd());
     this.audioPlayer.addEventListener('timeupdate', ()=>this.updateProgress());
 

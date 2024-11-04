@@ -48,7 +48,7 @@ export class Perk {
 
   resetIfNeeded(audioPlayerTime) {
     if (this.currentLine) {
-      const {startTime, endTime} = this.getTimesForLine(this.currentLine);
+      const {startTime} = this.getTimesForLine(this.currentLine);
       if (startTime >= audioPlayerTime) {
         this.currentLine = 0;
       }
@@ -72,14 +72,12 @@ export class Perk {
       this.previousSelectedRow = document.getElementById(currentRowId);
       this.previousSelectedRow.classList.add('highlight');
       if (!this.isElementInViewport(this.previousSelectedRow)) {
-        const rect = this.previousSelectedRow.getBoundingClientRect();
         this.previousSelectedRow.scrollIntoView({behavior: 'smooth', block: 'center'});
       }
     }
   }
   setLineTimes(index, audioPlayerTime) {
     const line = this.json.lines[index]
-    const {startTime, endTime} = line;
     line.startTime = audioPlayerTime;
     if (index>0){
       const previousLine = this.json.lines[index-1];
@@ -95,9 +93,10 @@ export class Perk {
     const saved = localStorage.getItem(this.perk);
     if (saved){
       const times = JSON.parse(saved);
-      this.json.lines.forEach((line, i) => {
-        line.startTime = times[i].startTime;
-        line.endTime = times[i].endTime;
+      times.forEach(({startTime,endTime }, i) => {
+
+        this.json.lines[i].startTime = startTime;
+        this.json.lines[i].endTime = endTime;
       });
     }
   }
