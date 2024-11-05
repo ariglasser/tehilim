@@ -35,8 +35,8 @@ td {
     padding: 1px;
     border-left: none;
     border-right: none;
-    border-top: 1px solid yellow;
-    border-bottom: 1px solid yellow;
+    border-top: 1px solid lightyellow;
+    border-bottom: 1px solid lightyellow;
     font-size: x-large;
     line-height: 2em;
 }
@@ -185,6 +185,13 @@ label {
 
 .highlight {
     color: red;
+    font-weight: bold;
+    background: lightyellow;
+}
+
+.highlight .row_num{
+    font-size: xx-large;
+    text-decoration: underline;
 }
 
 .downloadFixedTimes {
