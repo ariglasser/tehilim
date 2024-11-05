@@ -57,6 +57,7 @@ export class Controller {
   _isSound;
   _config;
   _isPlayNext;
+  _isFixTimes;
   _progress1;
   _progress2;
   _timeDisplay;
@@ -66,8 +67,9 @@ export class Controller {
 
   constructor() {
     this.prakim = new Prakim();
-    if (this.config.d === this.prakim.weekDay && this.config.p){
-      this.prakim.CURRENT = this.config.p
+    this._perkData = new Perk()
+    if (this.config.weekDay === this.prakim.weekDay && this.config.weekDay){
+      this.prakim.CURRENT = this.config.perk;
     }
   }
 
@@ -86,7 +88,11 @@ export class Controller {
   }
 
   showRow(rowNumber) {
-    this._perkData.setLineTimes(rowNumber, this.audioPlayer.currentTime);
+    if (this.isFixTimes.checked) {
+      this._perkData.setLineTimes(rowNumber, this.audioPlayer.currentTime);
+    } else {
+      this.audioPlayer.currentTime = this._perkData.getRowStartTime(rowNumber);
+    }
 
   }
 
@@ -129,6 +135,12 @@ export class Controller {
     return this._isPlayNext ?? (this._isPlayNext = document.getElementById('isPlayNext'));
   }
 
+  get isFixTimes() {
+    return this._isFixTimes ?? (this._isFixTimes = document.getElementById('isFixTimes'));
+  }
+
+
+
   get progress1() {
     return this._progress1 ?? (this._progress1 = document.getElementById('progress1'));
   }
@@ -161,8 +173,8 @@ export class Controller {
   navigate(perk, withPlay = true) {
     this.hasPlayed = true;
     perk = this.prakim.setPerk(perk)
-    this.saveConfig();
-    this.showPerk(perk);
+    this.config.save();
+    this.showPerk(perk).catch(console.error);
     this.playPerk(perk, withPlay)
   }
 
@@ -177,43 +189,34 @@ export class Controller {
     document.getElementById(`perk_${perk}`).classList.add('active');
 
     const data = await loadPerkData(perk)
-    if (this._perkData) {
-      this._perkData.save();
-    }
-    this._perkData = new Perk(perk, data);
+
+
+    this._perkData.setLines(perk, data.lines, this.isFixTimes.checked);
     this.perkTable.innerHTML = this._perkData.generatePerkTableHTML();
     [...document.getElementsByClassName('row')].forEach((el,i) => el.addEventListener('click', () => this.showRow(i)));
     return perk
   }
 
-  saveConfig() {
-    this._config = {
-      s:this.playBackRateValue,
-      p:this.prakim.perk,
-      n:this.isPlayNext.checked,
-      l:this.isSound.checked,
-      d:this.prakim.weekDay
-    }
-    const value = JSON.stringify(this._config)
-    const date = new Date();
-    date.setTime(date.getTime() + (100 * 24 * 60 * 60 * 1000))
-    document.cookie = `config=${value}; expires=${date.toUTCString()}; path=/`;
-
-
-    }
-
   get config() {
     if (!this._config) {
-      const cookies = document.cookie.split(';');
-      let configCookieValue = cookies.find(c => c.trim().startsWith('config='));
-      this._config = {};
-      if (configCookieValue) {
-        configCookieValue = configCookieValue.replace('config=', '');
-        this._config =  JSON.parse(configCookieValue)
+      this._config = JSON.parse(localStorage.getItem('config') ?? '{}');
+
+      this._config.playBackRate = this._config.playBackRate ?? 1;
+      this._config.isPlayNext = this._config.isPlayNext ?? true;
+      this._config.isSound = this._config.isSound ?? true;
+
+      this._config.save = () => {
+        const config = {
+          playBackRate: this.playBackRateValue,
+          perk: this.prakim.perk,
+          isPlayNext: this.isPlayNext.checked,
+          isSound: this.isSound.checked,
+          weekDay: this.prakim.weekDay,
+          isFixTimes: this.isFixTimes.checked
+        }
+        const value = JSON.stringify(config)
+        localStorage.setItem('config', value);
       }
-      this._config.s = this._config.s ?? 1;
-      this._config.n = this._config.n ?? true;
-      this._config.l = this._config.n ?? true;
     }
     return this._config;
   }
@@ -253,9 +256,7 @@ export class Controller {
     // Calculate the percentage of progress
     const percent1 = ((audioPlayerTime / audioPlayerDuration) * 100) || 0;
     const percent2 = (((audioPlayerTime + this.prakim.perkStartAt )/this.prakim.totalTime) * 100) || 0;
-    if (this._perkData) {
-      this._perkData.selectLineAtTime(audioPlayerTime);
-    }
+    this._perkData.selectLineAtTime(audioPlayerTime);
 
     this.progress1.style.width = percent1 + '%';
     this.progress2.style.width = percent2 + '%';
@@ -266,7 +267,6 @@ export class Controller {
   }
 
   playSoundChanged(){
-    this.saveConfig();
     if (!this.isSound.checked) {
       this.audioPlayer.pause();
       this.audioPlayer.currentTime = 0
@@ -292,12 +292,19 @@ export class Controller {
   }
 
   async addListeners() {
-    this.playBackRate.value = this.config.s;
-    this.isPlayNext.checked = this.config.n;
-    this.isSound.checked = this.config.l;
+    this.playBackRate.value = this.config.playBackRate;
+    this.isPlayNext.checked = this.config.isPlayNext;
+    this.isSound.checked = this.config.isSound;
+    this.isFixTimes.checked = this.config.isFixTimes;
 
     document.getElementById('dropdown').innerHTML = SVG_DROPDOWN
-    document.getElementById('downloadTimes').addEventListener('click',()=> this._perkData.downloadFile());
+    const downloadTimes = document.getElementById('downloadTimes');
+
+    downloadTimes.addEventListener('click',()=> this._perkData.downloadFile());
+    this.isFixTimes.addEventListener('change', () => {
+      downloadTimes.style.display = this.isFixTimes.checked ? 'inline' : 'none';
+    });
+    downloadTimes.style.display = this.isFixTimes.checked ? 'inline' : 'none';
 
     this.isSound.addEventListener('change', () => this.playSoundChanged());
     this.audioPlayer.addEventListener('ended', () => this.onPerkEnd());
@@ -317,12 +324,11 @@ export class Controller {
     this.playBackRate.addEventListener('input', (e) => {
       this.audioPlayer.playbackRate = e.target.value;
       speedLabel.textContent = `Speed ${e.target.value}:`;
-      this.saveConfig();
       if (this.audioPlayer.paused) {
         this.updateProgress()
       }
     })
-    speedLabel.textContent = `Speed ${this.config.s}:`;
+    speedLabel.textContent = `Speed ${this.playBackRateValue}:`;
 
     this.playBtn.addEventListener('click', ()=>this.togglePlayState());
 
@@ -362,6 +368,11 @@ export class Controller {
         this.audioPlayer.currentTime = (clickPercentage / 100) * this.audioPlayer.duration;
       }
 
+    });
+
+    window.addEventListener('beforeunload', () => {
+      this._perkData.save();
+      this.config.save();
     });
   }
 }

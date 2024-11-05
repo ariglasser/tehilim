@@ -166,7 +166,7 @@ label {
     position: absolute;
     background-color: #f9f9f9;
     min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
     z-index: 1;
     padding-left: 20px;
     padding-right: 20px;
@@ -176,7 +176,7 @@ label {
 }
 
 .dropdown-content label {
-    display: block;
+    display: inline;
 }
 
 .dropdown:hover .dropdown-content {
@@ -185,4 +185,14 @@ label {
 
 .highlight {
     color: red;
+}
+
+.downloadFixedTimes {
+    color: #0066cc; /* Link blue color */
+    text-decoration: underline; /* Underline text */
+    cursor: pointer; /* Pointer cursor on hover */
+}
+
+.downloadFixedTimes:hover {
+    color: #004999; /* Darker blue on hover */
 }

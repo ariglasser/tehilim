@@ -1,8 +1,15 @@
 import {getGematria} from "./gematria.mjs";
 
 export class Perk {
-  constructor(perk, json) {
-    this.json = json;
+  constructor() {
+    this.currentLine = 0;
+    this.previousSelectedRow = undefined;
+  }
+  setLines(perk, lines, isFixTimes = false) {
+    if (isFixTimes) {
+      this.save();
+    }
+    this.lines = lines;
     this.perk = perk;
     this.load();
     this.currentLine = 0;
@@ -10,7 +17,7 @@ export class Perk {
   }
 
   generatePerkTableHTML() {
-    const rows = this.json.lines.map((line, i) => `
+    const rows = this.lines.map((line, i) => `
         <tr id="row_${i + 1}" class="row">
          <td class="row_num">${line.verse}</td>
          <td class="row_txt">${line.text}</td>
@@ -40,35 +47,32 @@ export class Perk {
     );
   }
 
-  getTimesForLine(index) {
-    const line = this.json.lines[index]
-    const {startTime, endTime} = line;
-    return {startTime, endTime};
-  }
 
-  resetIfNeeded(audioPlayerTime) {
+
+  getCurrentLine(audioPlayerTime) {
     if (this.currentLine) {
-      const {startTime} = this.getTimesForLine(this.currentLine);
+      const {startTime} = this.lines[this.currentLine];
       if (startTime >= audioPlayerTime) {
         this.currentLine = 0;
       }
     }
+    return this.currentLine;
   }
   selectLineAtTime(audioPlayerTime) {
-    this.resetIfNeeded(audioPlayerTime)
-    for (let i = this.currentLine; i < this.json.lines.length ; i++) {
-      const {startTime, endTime} = this.getTimesForLine(i);
+    const currentLine = this.getCurrentLine(audioPlayerTime)
+    for (let i = currentLine; i < this.lines.length ; i++) {
+      const {startTime, endTime} = this.lines[i];
       if (startTime <= audioPlayerTime && audioPlayerTime < endTime) {
         this.currentLine = i;
         break
       }
     }
     const currentRowId = `row_${this.currentLine + 1}`;
-    if (this.previousSelectedRow
-      && this.previousSelectedRow.id !== currentRowId
-      && this.previousSelectedRow.classList.contains('highlight')) {
-      this.previousSelectedRow.classList.remove('highlight');
-    } else {
+
+    if (this.previousSelectedRow?.id !== currentRowId) {
+      if (this.previousSelectedRow?.classList?.contains('highlight')) {
+        this.previousSelectedRow.classList.remove('highlight');
+      }
       this.previousSelectedRow = document.getElementById(currentRowId);
       this.previousSelectedRow.classList.add('highlight');
       if (!this.isElementInViewport(this.previousSelectedRow)) {
@@ -77,16 +81,18 @@ export class Perk {
     }
   }
   setLineTimes(index, audioPlayerTime) {
-    const line = this.json.lines[index]
+    const line = this.lines[index]
     line.startTime = audioPlayerTime;
     if (index>0){
-      const previousLine = this.json.lines[index-1];
+      const previousLine = this.lines[index-1];
       previousLine.endTime = audioPlayerTime;
     }
   }
 
   save() {
-    localStorage.setItem(this.perk, JSON.stringify(this.json.lines.map(l => ({startTime: l.startTime, endTime: l.endTime}))));
+    if (this.lines) {
+      localStorage.setItem(this.perk, JSON.stringify(this.lines.map(l => ({startTime: l.startTime, endTime: l.endTime}))));
+    }
   }
 
   load(){
@@ -95,13 +101,15 @@ export class Perk {
       const times = JSON.parse(saved);
       times.forEach(({startTime,endTime }, i) => {
 
-        this.json.lines[i].startTime = startTime;
-        this.json.lines[i].endTime = endTime;
+        this.lines[i].startTime = startTime;
+        this.lines[i].endTime = endTime;
       });
     }
   }
 
-
+  getRowStartTime(index){
+    return this.lines[index].startTime;
+  }
 
   downloadFile(perk = undefined) {
     let data = {};
