@@ -58,6 +58,7 @@ export class Controller {
   _config;
   _isPlayNext;
   _isFixTimes;
+  _isAutoScroll;
   _progress1;
   _progress2;
   _timeDisplay;
@@ -87,11 +88,11 @@ export class Controller {
     });
   }
 
-  showRow(rowNumber) {
-    if (this.isFixTimes.checked) {
-      this._perkData.setLineTimes(rowNumber, this.audioPlayer.currentTime);
-    } else {
+  showRow(e, rowNumber) {
+    if (!this.isFixTimes.checked || e?.target?.classList.contains('row_num')) {
       this.audioPlayer.currentTime = this._perkData.getRowStartTime(rowNumber);
+    } else {
+      this._perkData.setLineTimes(rowNumber, this.audioPlayer.currentTime);
     }
 
   }
@@ -139,7 +140,9 @@ export class Controller {
     return this._isFixTimes ?? (this._isFixTimes = document.getElementById('isFixTimes'));
   }
 
-
+  get isAutoScroll() {
+    return this._isAutoScroll?? (this._isAutoScroll = document.getElementById('isAutoScroll'));
+  }
 
   get progress1() {
     return this._progress1 ?? (this._progress1 = document.getElementById('progress1'));
@@ -193,7 +196,7 @@ export class Controller {
 
     this._perkData.setLines(perk, data.lines, this.isFixTimes.checked);
     this.perkTable.innerHTML = this._perkData.generatePerkTableHTML();
-    [...document.getElementsByClassName('row')].forEach((el,i) => el.addEventListener('click', () => this.showRow(i)));
+    [...document.getElementsByClassName('row')].forEach((el,i) => el.addEventListener('click', (e) => this.showRow(e,i)));
     return perk
   }
 
@@ -256,7 +259,7 @@ export class Controller {
     // Calculate the percentage of progress
     const percent1 = ((audioPlayerTime / audioPlayerDuration) * 100) || 0;
     const percent2 = (((audioPlayerTime + this.prakim.perkStartAt )/this.prakim.totalTime) * 100) || 0;
-    this._perkData.selectLineAtTime(audioPlayerTime);
+    this._perkData.selectLineAtTime(audioPlayerTime, this.isAutoScroll.checked);
 
     this.progress1.style.width = percent1 + '%';
     this.progress2.style.width = percent2 + '%';

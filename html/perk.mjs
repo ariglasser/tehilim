@@ -58,12 +58,13 @@ export class Perk {
     }
     return this.currentLine;
   }
-  selectLineAtTime(audioPlayerTime) {
+  selectLineAtTime(audioPlayerTime, withScroll) {
     const currentLine = this.getCurrentLine(audioPlayerTime)
     for (let i = currentLine; i < this.lines.length ; i++) {
       const {startTime, endTime} = this.lines[i];
       if (startTime <= audioPlayerTime && audioPlayerTime < endTime) {
         this.currentLine = i;
+        console.log('selectLineAtTime:', i, 'started at', currentLine)
         break
       }
     }
@@ -75,7 +76,7 @@ export class Perk {
       }
       this.previousSelectedRow = document.getElementById(currentRowId);
       this.previousSelectedRow.classList.add('highlight');
-      if (!this.isElementInViewport(this.previousSelectedRow)) {
+      if (withScroll && !this.isElementInViewport(this.previousSelectedRow)) {
         this.previousSelectedRow.scrollIntoView({behavior: 'smooth', block: 'center'});
       }
     }
@@ -87,6 +88,8 @@ export class Perk {
       const previousLine = this.lines[index-1];
       previousLine.endTime = audioPlayerTime;
     }
+    console.log('set this.currentLine :',this.currentLine )
+    this.currentLine = index
   }
 
   save() {
