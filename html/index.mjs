@@ -64,11 +64,11 @@ export class Controller {
   _timeDisplay;
   _playBtn;
   playState;
-  _perkData;
+  perkData;
 
   constructor() {
     this.prakim = new Prakim();
-    this._perkData = new Perk()
+    this.perkData = new Perk()
     if (this.config.weekDay === this.prakim.weekDay && this.config.weekDay){
       this.prakim.CURRENT = this.config.perk;
     }
@@ -88,13 +88,22 @@ export class Controller {
     });
   }
 
+  isPlaying(){
+    return !this.audioPlayer.paused && !this.audioPlayer.ended;
+  }
   showRow(e, rowNumber) {
     if (!this.isFixTimes.checked || e?.target?.classList.contains('row_num')) {
-      this.audioPlayer.currentTime = this._perkData.getRowStartTime(rowNumber);
+      this.audioPlayer.currentTime = this.perkData.getRowStartTime(rowNumber);
     } else {
-      this._perkData.setLineTimes(rowNumber, this.audioPlayer.currentTime);
+      if (this.isPlaying()) {
+        this.perkData.setLineTimes(rowNumber, this.audioPlayer.currentTime);
+      }
     }
+  }
 
+  clearOverrides() {
+    this.audioPlayer.currentTime = 0;
+    this.perkData.clearOverrides()
   }
 
 
@@ -194,9 +203,10 @@ export class Controller {
     const data = await loadPerkData(perk)
 
 
-    this._perkData.setLines(perk, data.lines, this.isFixTimes.checked);
-    this.perkTable.innerHTML = this._perkData.generatePerkTableHTML();
+    this.perkData.setPerkData(perk, data, this.isFixTimes.checked);
+    this.perkTable.innerHTML = this.perkData.generatePerkTableHTML();
     [...document.getElementsByClassName('row')].forEach((el,i) => el.addEventListener('click', (e) => this.showRow(e,i)));
+    document.getElementById('resetHeader').addEventListener('dblclick',()=> this.clearOverrides())
     return perk
   }
 
@@ -259,7 +269,7 @@ export class Controller {
     // Calculate the percentage of progress
     const percent1 = ((audioPlayerTime / audioPlayerDuration) * 100) || 0;
     const percent2 = (((audioPlayerTime + this.prakim.perkStartAt )/this.prakim.totalTime) * 100) || 0;
-    this._perkData.selectLineAtTime(audioPlayerTime, this.isAutoScroll.checked);
+    this.perkData.selectLineAtTime(audioPlayerTime, this.isAutoScroll.checked);
 
     this.progress1.style.width = percent1 + '%';
     this.progress2.style.width = percent2 + '%';
@@ -303,7 +313,7 @@ export class Controller {
     document.getElementById('dropdown').innerHTML = SVG_DROPDOWN
     const downloadTimes = document.getElementById('downloadTimes');
 
-    downloadTimes.addEventListener('click',()=> this._perkData.downloadFile());
+    downloadTimes.addEventListener('click',()=> this.perkData.downloadFile());
     this.isFixTimes.addEventListener('change', () => {
       downloadTimes.style.display = this.isFixTimes.checked ? 'inline' : 'none';
     });
@@ -374,7 +384,7 @@ export class Controller {
     });
 
     window.addEventListener('beforeunload', () => {
-      this._perkData.save();
+      this.perkData.save();
       this.config.save();
     });
   }

@@ -5,12 +5,14 @@ export class Perk {
     this.currentLine = 0;
     this.previousSelectedRow = undefined;
   }
-  setLines(perk, lines, isFixTimes = false) {
+  setPerkData(perk, {lines,duration}, isFixTimes = false) {
     if (isFixTimes) {
       this.save();
     }
     this.lines = lines;
+    this.duration = duration;
     this.perk = perk;
+    this.originalTimes = lines.map(line=>line.startTime);
     this.load();
     this.currentLine = 0;
     this.previousSelectedRow = undefined;
@@ -25,7 +27,7 @@ export class Perk {
     );
     const tHead = `
         <thead>
-            <tr><th colspan="2">פרק ${getGematria(this.perk)} </th></tr>
+            <tr><th id='resetHeader' colspan="2">פרק ${getGematria(this.perk)} </th></tr>
        </thead>`
 
     return `
@@ -51,7 +53,7 @@ export class Perk {
 
   getCurrentLine(audioPlayerTime) {
     if (this.currentLine) {
-      const {startTime} = this.lines[this.currentLine];
+      const startTime = this.getRowStartTime(this.currentLine)
       if (startTime >= audioPlayerTime) {
         this.currentLine = 0;
       }
@@ -60,15 +62,16 @@ export class Perk {
   }
   selectLineAtTime(audioPlayerTime, withScroll) {
     const currentLine = this.getCurrentLine(audioPlayerTime)
+
     for (let i = currentLine; i < this.lines.length ; i++) {
-      const {startTime, endTime} = this.lines[i];
+      const {startTime, endTime} = this.getRowTimes(i);
       if (startTime <= audioPlayerTime && audioPlayerTime < endTime) {
         this.currentLine = i;
-        console.log('selectLineAtTime:', i, 'started at', currentLine)
         break
       }
     }
     const currentRowId = `row_${this.currentLine + 1}`;
+    // console.log('selectLineAtTime', currentLine, this.currentLine, currentRowId, this.previousSelectedRow?.id)
 
     if (this.previousSelectedRow?.id !== currentRowId) {
       if (this.previousSelectedRow?.classList?.contains('highlight')) {
@@ -81,44 +84,72 @@ export class Perk {
       }
     }
   }
+
   setLineTimes(index, audioPlayerTime) {
+    if (index === 0 ) {
+      audioPlayerTime =0;
+    }
     const line = this.lines[index]
     line.startTime = audioPlayerTime;
-    if (index>0){
-      const previousLine = this.lines[index-1];
-      previousLine.endTime = audioPlayerTime;
+    let i = index+1;
+
+    // console.log('setLineTimes',index, audioPlayerTime, oldStartTime, line.startTime, this.lines[index+1]?.startTime )
+
+    while(this.lines[i]?.startTime < audioPlayerTime && i<this.lines.length) {
+      this.lines[i].startTime = Math.max(this.lines[i-1].endTime, audioPlayerTime + 3);
+      // console.log('next line',i, audioPlayerTime, this.lines[i].startTime )
+      i++
     }
-    console.log('set this.currentLine :',this.currentLine )
+
+
     this.currentLine = index
   }
 
+  clearOverrides(){
+    localStorage.removeItem(this.perkKey(this.perk));
+    this.lines.forEach((line,i)=>{
+      line.startTime = this.originalTimes[i]
+    })
+  }
+
+  perkKey(perk){
+    return `${perk}`
+  }
   save() {
     if (this.lines) {
-      localStorage.setItem(this.perk, JSON.stringify(this.lines.map(l => ({startTime: l.startTime, endTime: l.endTime}))));
+      localStorage.setItem(this.perkKey(this.perk), JSON.stringify(this.lines.map(l => ({startTime: l.startTime}))));
     }
   }
 
   load(){
-    const saved = localStorage.getItem(this.perk);
+    const saved = localStorage.getItem(this.perkKey(this.perk));
     if (saved){
       const times = JSON.parse(saved);
-      times.forEach(({startTime,endTime }, i) => {
-
+      times.forEach(({startTime }, i) => {
         this.lines[i].startTime = startTime;
-        this.lines[i].endTime = endTime;
       });
     }
   }
 
   getRowStartTime(index){
-    return this.lines[index].startTime;
+    return  index === 0 ? 0 : this.lines[index].startTime;
+  }
+
+  getRowEndTime(index){
+    return index+1 === this.lines.length ? this.duration : this.lines[index+1].startTime
+  }
+
+  getRowTimes(index){
+    const startTime = this.getRowStartTime(index);
+    const endTime = this.getRowEndTime(index);
+    return {startTime,endTime}
   }
 
   downloadFile(perk = undefined) {
     let data = {};
     const prakim = perk ? [perk] : Array.from({length:150}, (_,i) => i+1);
     prakim.forEach(perk => {
-      const times = localStorage.getItem(perk);
+      const times = localStorage.getItem(this.perkKey(perk));
       if (times){
         data[perk] = JSON.parse(times);
       }
