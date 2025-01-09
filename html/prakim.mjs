@@ -1,3 +1,5 @@
+import {Perk} from "./perk.mjs";
+
 const DAILY_PRAKIM = [[1, 29], [30, 50], [51, 72], [73, 89], [90, 106], [107, 119], [120, 150]];
 import {getPerkDuration} from "./resources.mjs";
 export class Prakim {
@@ -7,14 +9,22 @@ export class Prakim {
   _waitingTotals = {}
   _perkDurations = {}
   _current = undefined;
+  _perk;
+  _onPerkChange;
 
+  set onPerkChange(onPerkChange) {
+    this._onPerkChange = onPerkChange;
+  }
   constructor(_weekDay) {
     this.weekDay = _weekDay
+    this._perk = new Perk()
   }
 
-  set weekDay(_weekDay) {
-    this._weekDay = _weekDay;
-    this._current = undefined;
+  set weekDay(weekDay) {
+    if (this._weekDay !== weekDay) {
+      this._weekDay = weekDay;
+      this.#current = undefined;
+    }
   }
 
   get weekDay() {
@@ -47,56 +57,39 @@ export class Prakim {
     return this.from - this.to + 1;
   }
 
-  get NEXT() {
-    this._current = !this._current ? this.from : Math.min(this.to, this._current + 1);
-    return this._current;
-  }
-  get PREVIOUS() {
-    this._current = !this._current ? this.from : Math.max(this.from, this._current - 1);
-    return this._current;
-  }
-  get FIRST() {
-    this._current = this.from;
-    return this._current;
-  }
-  get LAST() {
-    this._current = this.to;
-    return this._current;
-  }
-  get CURRENT() {
-    return this._current;
+
+  #NAVIGATIONS = {
+    NEXT:()=> Math.min(this.to, this.#current + 1),
+    PREVIOUS:() => Math.max(this.from, this.#current - 1),
+    FIRST:() => this.from,
+    LAST : () => this.to
   }
 
-  set CURRENT(perk) {
-    perk = perk ?? 'FIRST';
-    if (perk === true) {
-      perk = 'NEXT'
+  navigate(destination) {
+    destination = destination ?? 'FIRST';
+    if (destination === true) {
+      destination = 'NEXT'
     }
-    if (perk === false) {
-      perk = 'PREVIOUS'
+    if (destination === false) {
+      destination = 'PREVIOUS'
     }
-    if (isNaN(perk)) {
-      const current = this[perk.toUpperCase()];
-      if (!current){
-        console.log(`perk ${perk} not found`)
-      }
-    } else {
-      this._current = Math.min(this.to, perk);
-      this._current = Math.max(this.from, perk);
+    if (isNaN(destination)) {
+      destination = this.#NAVIGATIONS[destination.toUpperCase()]()
     }
+    this.#current = destination
   }
 
-  set perk(perk) {
-    this.CURRENT = perk;
+  get #current(){
+    return this._current ?? this.from
   }
 
-  get perk() {
-    return this.CURRENT
-  }
-
-  setPerk(perk){
-    this.CURRENT = perk;
-    return this.CURRENT
+  set #current(active) {
+    const current = Math.max(this.from, Math.min(this.to, active ?? this.from));
+    // _current can be undefined. but #current is never undefined. we want to trigger the update
+    if (current !== this._current){
+      this._current = current;
+      this.updatePerkData().catch(console.error)
+    }
   }
 
   perkAt(index){
@@ -114,6 +107,7 @@ export class Prakim {
   }
 
   async wait() {
+    await this.updatePerkData()
     if (!this._totalTimes[this.weekDay] && !this._waitingTotals[this.weekDay]) {
       this.totalTime;
     }
@@ -154,6 +148,40 @@ export class Prakim {
   get perkStartAt() {
     return  this.perkTimes.startAt ?? 0
   }
+
+  get Perk(){
+    this.updatePerkData().catch(console.error)
+    return this._perk
+  }
+
+  async updatePerkData(){
+    if (this._perk.perk !== this.#current) {
+      await this._perk.updatePerkData(this.#current);
+      this._onPerkChange && this._onPerkChange(this.Perk)
+    }
+    return this._perk
+  }
+
+  downloadTimes() {
+    let data = {};
+    Array.from({length:150}, (_,i) => i+1)
+      .forEach(perk => {
+        const times = localStorage.getItem(this.perkKey(perk));
+        if (times){
+          data[perk] = JSON.parse(times);
+        }
+      });
+
+    const blob = new Blob([JSON.stringify(data,null,2)], { type: 'text/plain' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'perk_times.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  }
+
 }
 
 

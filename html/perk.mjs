@@ -1,18 +1,24 @@
 import {getGematria} from "./gematria.mjs";
+import {Properties} from "./Properties.mjs";
+import {loadPerkData} from "./resources.mjs";
 
 export class Perk {
   constructor() {
+    this.config = new Properties();
     this.currentLine = 0;
     this.previousSelectedRow = undefined;
-  }
-  setPerkData(perk, {lines,duration}, isFixTimes = false) {
-    if (isFixTimes) {
+    window.addEventListener('beforeunload', () => {
       this.save();
-    }
-    this.lines = lines;
-    this.duration = duration;
+    });
+
+  }
+  async updatePerkData(perk) {
+    this.save();
+    const data = await loadPerkData(perk);
+    this.lines = data.lines;
+    this.duration = data.duration;
     this.perk = perk;
-    this.originalTimes = lines.map(line=>line.startTime);
+    this.originalTimes = this.lines.map(line=>line.startTime);
     this.load();
     this.currentLine = 0;
     this.previousSelectedRow = undefined;
@@ -60,7 +66,7 @@ export class Perk {
     }
     return this.currentLine;
   }
-  selectLineAtTime(audioPlayerTime, withScroll) {
+  selectLineAtTime(audioPlayerTime) {
     const currentLine = this.getCurrentLine(audioPlayerTime)
 
     for (let i = currentLine; i < this.lines.length ; i++) {
@@ -71,15 +77,13 @@ export class Perk {
       }
     }
     const currentRowId = `row_${this.currentLine + 1}`;
-    // console.log('selectLineAtTime', currentLine, this.currentLine, currentRowId, this.previousSelectedRow?.id)
-
     if (this.previousSelectedRow?.id !== currentRowId) {
       if (this.previousSelectedRow?.classList?.contains('highlight')) {
         this.previousSelectedRow.classList.remove('highlight');
       }
       this.previousSelectedRow = document.getElementById(currentRowId);
       this.previousSelectedRow.classList.add('highlight');
-      if (withScroll && !this.isElementInViewport(this.previousSelectedRow)) {
+      if (this.config.isAutoScroll && !this.isElementInViewport(this.previousSelectedRow)) {
         this.previousSelectedRow.scrollIntoView({behavior: 'smooth', block: 'center'});
       }
     }
@@ -93,11 +97,9 @@ export class Perk {
     line.startTime = audioPlayerTime;
     let i = index+1;
 
-    // console.log('setLineTimes',index, audioPlayerTime, oldStartTime, line.startTime, this.lines[index+1]?.startTime )
 
     while(this.lines[i]?.startTime < audioPlayerTime && i<this.lines.length) {
       this.lines[i].startTime = Math.max(this.lines[i-1].endTime, audioPlayerTime + 3);
-      // console.log('next line',i, audioPlayerTime, this.lines[i].startTime )
       i++
     }
 
@@ -116,7 +118,7 @@ export class Perk {
     return `${perk}`
   }
   save() {
-    if (this.lines) {
+    if (this.perk && this.lines) {
       localStorage.setItem(this.perkKey(this.perk), JSON.stringify(this.lines.map(l => ({startTime: l.startTime}))));
     }
   }
@@ -143,26 +145,6 @@ export class Perk {
     const startTime = this.getRowStartTime(index);
     const endTime = this.getRowEndTime(index);
     return {startTime,endTime}
-  }
-
-  downloadFile(perk = undefined) {
-    let data = {};
-    const prakim = perk ? [perk] : Array.from({length:150}, (_,i) => i+1);
-    prakim.forEach(perk => {
-      const times = localStorage.getItem(this.perkKey(perk));
-      if (times){
-        data[perk] = JSON.parse(times);
-      }
-    });
-
-    const blob = new Blob([JSON.stringify(data,null,2)], { type: 'text/plain' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'perk_times.json';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
   }
 }
 
