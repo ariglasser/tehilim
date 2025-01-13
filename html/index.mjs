@@ -189,7 +189,7 @@ export class Controller {
     const adjustedDuration = audioPlayerDuration / speed;
     const adjustedPlayTime = audioPlayerTime / speed;
     const totalAdjustedDuration = this.prakim.totalTime / speed;
-    const totalAdjustedPlayTime = this.prakim.perkStartAt / speed;
+    const totalAdjustedPlayTime = (this.prakim.perkStartAt + audioPlayerTime) / speed ;
 
 
     // Calculate the percentage of progress
