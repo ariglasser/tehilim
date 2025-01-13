@@ -22,6 +22,7 @@ export class Perk {
     this.load();
     this.currentLine = 0;
     this.previousSelectedRow = undefined;
+    this.config.perk = perk;
   }
 
   generatePerkTableHTML() {
@@ -145,6 +146,26 @@ export class Perk {
     const startTime = this.getRowStartTime(index);
     const endTime = this.getRowEndTime(index);
     return {startTime,endTime}
+  }
+
+  static downloadTimes() {
+    let data = {};
+    Array.from({length:150}, (_,i) => i+1)
+      .forEach(perk => {
+        const times = localStorage.getItem(this.perkKey(perk));
+        if (times){
+          data[perk] = JSON.parse(times);
+        }
+      });
+
+    const blob = new Blob([JSON.stringify(data,null,2)], { type: 'text/plain' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'perk_times.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
   }
 }
 

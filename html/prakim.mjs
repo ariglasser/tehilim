@@ -101,6 +101,8 @@ export class Prakim {
         .then((total)=>{
           this._totalTimes[this.weekDay] = total
           delete this._waitingTotals[this.weekDay]
+          console.log('finished computing total time')
+          this._onPerkChange && this._onPerkChange(this.Perk)
         })
     }
     return this._totalTimes[this.weekDay] ?? 0;
@@ -163,23 +165,7 @@ export class Prakim {
   }
 
   downloadTimes() {
-    let data = {};
-    Array.from({length:150}, (_,i) => i+1)
-      .forEach(perk => {
-        const times = localStorage.getItem(this.perkKey(perk));
-        if (times){
-          data[perk] = JSON.parse(times);
-        }
-      });
-
-    const blob = new Blob([JSON.stringify(data,null,2)], { type: 'text/plain' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'perk_times.json';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
+    Perk.downloadTimes();
   }
 
 }

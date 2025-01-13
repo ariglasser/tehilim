@@ -2,7 +2,7 @@
 import {getGematria} from "./gematria.mjs";
 import {Prakim} from "./prakim.mjs";
 import {Properties} from "./Properties.mjs";
-import {getPerkMp3Name} from "./resources.mjs";
+import {loadPerkAudio} from "./resources.mjs";
 const SVG_PLAY = `
  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="black">
  <polygon points="5,3 19,12 5,21" />
@@ -64,7 +64,7 @@ export class Controller {
     // speedLabel.textContent = `Speed ${this.config.playBackRate}:`;
     this.renderPrakimHeader();
 
-    this.prakim.navigate('first')
+    this.prakim.navigate(this.config.perk ?? 'first')
   }
 
 
@@ -126,17 +126,21 @@ export class Controller {
     return this._perkTable ?? (this._perkTable = document.getElementById('perkTable'));
   }
 
-  onPerkChange = (Perk) => {
+  onPerkChange = async(Perk) => {
+    console.log('on perk change', Perk.perk)
     this.showPerk(Perk);
-    this.playPerk(Perk.perk)
-    this.updateProgress()
+
+    return this.playPerk(Perk.perk)
+
   }
 
-  playPerk(perk) {
-      this.audioPlayer.src = getPerkMp3Name(perk);
-      this.audioPlayer.playbackRate = this.config.playBackRate;
-      if(this.config.isSound && this.isinPlayState) {
-        this.audioPlayer.play();
+  async playPerk(perk) {
+    this.audioPlayer.src = await loadPerkAudio(perk);
+    this.audioPlayer.playbackRate = this.config.playBackRate
+    if (this.isinPlayState) {
+      this.audioPlayer.play()
+    } else {
+      this.updateProgress()
     }
   }
 
@@ -182,7 +186,8 @@ export class Controller {
     }
 
     const audioPlayerTime = this.audioPlayer.currentTime;
-    const audioPlayerDuration = this.audioPlayer.duration;
+    //const audioPlayerDuration = this.audioPlayer.duration;
+    const audioPlayerDuration = this.prakim.Perk.duration;
     const speed = this.config.playBackRate;
 
     const adjustedDuration = audioPlayerDuration / speed;

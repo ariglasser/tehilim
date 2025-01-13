@@ -99,6 +99,7 @@ export class Properties extends EventTarget {
   }
 
   #setValue = (key, value) =>{
+
     const old = this._config[key]
     if (old !== value) {
       this._config[key] = value;
