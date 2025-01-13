@@ -7,8 +7,19 @@ const DEFAULTS = {
   isFixTimes:true,
   isAutoScroll:true
 }
+const reduceValue =(element,path) =>
+  path.split('.').reduce((o, k) => o[k], element)
+
+const setReducedValue =(element,path,value) => {
+  const keys = path.split('.');
+  const lastKey = keys.pop();
+  const o = keys.reduce((o, k) => o[k], element) ?? element;
+  o[lastKey] = value;
+}
+
 let _instance;
 export class Properties extends EventTarget {
+  elements = {}
   constructor() {
     super();
     if (!_instance) {
@@ -90,22 +101,26 @@ export class Properties extends EventTarget {
 
   bindToElement(id,eventName,path,property){
     const element = document.getElementById(id);
-    element.addEventListener(eventName, e=> {
-      this[property] = path.split('.').reduce((o, k) => {
-        return o[k]
-      }, e)
-    })
-
+    this.elements[property] = {element,path};
+    element.addEventListener(eventName, e=>
+      this[property] = reduceValue(e,`target.${path}`)
+    )
   }
 
   #setValue = (key, value) =>{
 
     const old = this._config[key]
+
     if (old !== value) {
       this._config[key] = value;
       this.#save();
       this.emit(`${key}Change`, {old, value});
     }
+    if (this.elements[key]) {
+      const {element,path} = this.elements[key]
+      setReducedValue(element,path,value)
+    }
+
     return old;
   }
 

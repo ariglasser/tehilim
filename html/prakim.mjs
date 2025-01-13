@@ -85,7 +85,7 @@ export class Prakim {
 
   set #current(active) {
     const current = Math.max(this.from, Math.min(this.to, active ?? this.from));
-    // _current can be undefined. but #current is never undefined. we want to trigger the update
+
     if (current !== this._current){
       this._current = current;
       this.updatePerkData().catch(console.error)
@@ -101,7 +101,6 @@ export class Prakim {
         .then((total)=>{
           this._totalTimes[this.weekDay] = total
           delete this._waitingTotals[this.weekDay]
-          console.log('finished computing total time')
           this._onPerkChange && this._onPerkChange(this.Perk)
         })
     }

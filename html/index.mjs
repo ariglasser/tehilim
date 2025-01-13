@@ -56,7 +56,7 @@ export class Controller {
   _progress2;
   _timeDisplay;
   _playBtn;
-  isinPlayState;
+  isinPlayState = false;
 
   constructor() {
     this.prakim = new Prakim();
@@ -85,6 +85,7 @@ export class Controller {
   isPlaying(){
     return !this.audioPlayer.paused && !this.audioPlayer.ended;
   }
+
   showRow(e, rowNumber) {
     if (!this.config.isFixTimes || e?.target?.classList.contains('row_num')) {
       this.audioPlayer.currentTime = this.prakim.Perk.getRowStartTime(rowNumber);
@@ -127,7 +128,7 @@ export class Controller {
   }
 
   onPerkChange = async(Perk) => {
-    console.log('on perk change', Perk.perk)
+    console.log('on perk change', Perk.perk,this.isinPlayState)
     this.showPerk(Perk);
 
     return this.playPerk(Perk.perk)
@@ -180,11 +181,6 @@ export class Controller {
   }
 
   updateProgress () {
-    if (!!this.isinPlayState !== !this.audioPlayer.paused) {
-      this.isinPlayState = !this.audioPlayer.paused;
-      this.playBtn.innerHTML = this.isinPlayState ?  SVG_PAUSE : SVG_PLAY
-    }
-
     const audioPlayerTime = this.audioPlayer.currentTime;
     //const audioPlayerDuration = this.audioPlayer.duration;
     const audioPlayerDuration = this.prakim.Perk.duration;
@@ -211,10 +207,14 @@ export class Controller {
 
    togglePlayState() {
     if (this.audioPlayer.paused) {
+      this.config.isSound = true;
+      this.isinPlayState = true;
       this.audioPlayer.play()
     } else {
+      this.isinPlayState = false;
       this.audioPlayer.pause();
     }
+     this.playBtn.innerHTML = this.isinPlayState ?  SVG_PAUSE : SVG_PLAY
   }
 
   onPerkEnd(){
@@ -229,12 +229,12 @@ export class Controller {
     document.getElementById('isFixTimes').checked = this.config.isFixTimes;
     document.getElementById('daysOfWeek').value = this.config.weekDay
 
-    this.config.bindToElement('playBackRate', 'input' , 'target.value','playBackRate')
-    this.config.bindToElement('isSound', 'change','target.checked', 'isSound');
-    this.config.bindToElement('isPlayNext', 'change','target.checked', 'isPlayNext');
-    this.config.bindToElement('isFixTimes', 'change','target.checked', 'isFixTimes');
-    this.config.bindToElement('isAutoScroll', 'change','target.checked', 'isAutoScroll');
-    this.config.bindToElement('daysOfWeek', 'change','target.selectedIndex', 'weekDay');
+    this.config.bindToElement('playBackRate', 'input' , 'value','playBackRate')
+    this.config.bindToElement('isSound', 'change','checked', 'isSound');
+    this.config.bindToElement('isPlayNext', 'change','checked', 'isPlayNext');
+    this.config.bindToElement('isFixTimes', 'change','checked', 'isFixTimes');
+    this.config.bindToElement('isAutoScroll', 'change','checked', 'isAutoScroll');
+    this.config.bindToElement('daysOfWeek', 'change','selectedIndex', 'weekDay');
 
 
 
@@ -265,7 +265,7 @@ export class Controller {
       }
     })
     this.config.on("isSoundChange", (e) => {
-      e.detail.value ? this.audioPlayer.play(): this.audioPlayer.pause();
+      e.detail.value && this.isinPlayState ? this.audioPlayer.play(): this.audioPlayer.pause();
     })
     this.config.on("isFixTimesChange", (e) => {
       downloadTimes.style.display = e.detail.value ? 'inline' : 'none';
