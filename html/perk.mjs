@@ -13,11 +13,12 @@ export class Perk {
 
   }
   async updatePerkData(perk) {
+    console.log('updatePerkData from',this.perk,'to', perk )
     this.save();
+    this.perk = perk;
     const data = await loadPerkData(perk);
     this.lines = data.lines;
     this.duration = data.duration;
-    this.perk = perk;
     this.originalTimes = this.lines.map(line=>line.startTime);
     this.load();
     this.currentLine = 0;
@@ -56,8 +57,6 @@ export class Perk {
     );
   }
 
-
-
   getCurrentLine(audioPlayerTime) {
     if (this.currentLine) {
       const startTime = this.getRowStartTime(this.currentLine)
@@ -67,13 +66,15 @@ export class Perk {
     }
     return this.currentLine;
   }
-  selectLineAtTime(audioPlayerTime) {
-    const currentLine = this.getCurrentLine(audioPlayerTime)
 
+  highlightLineAtTime(audioPlayerTime) {
+    const currentLine = this.getCurrentLine(audioPlayerTime)
+    let rowEndTime;
     for (let i = currentLine; i < this.lines.length ; i++) {
       const {startTime, endTime} = this.getRowTimes(i);
       if (startTime <= audioPlayerTime && audioPlayerTime < endTime) {
         this.currentLine = i;
+        rowEndTime = endTime;
         break
       }
     }
@@ -82,15 +83,17 @@ export class Perk {
       if (this.previousSelectedRow?.classList?.contains('highlight')) {
         this.previousSelectedRow.classList.remove('highlight');
       }
+
       this.previousSelectedRow = document.getElementById(currentRowId);
       this.previousSelectedRow.classList.add('highlight');
       if (this.config.isAutoScroll && !this.isElementInViewport(this.previousSelectedRow)) {
         this.previousSelectedRow.scrollIntoView({behavior: 'smooth', block: 'center'});
       }
     }
+    return rowEndTime
   }
 
-  setLineTimes(index, audioPlayerTime) {
+  fixLineStartTime(index, audioPlayerTime) {
     if (index === 0 ) {
       audioPlayerTime =0;
     }
@@ -118,6 +121,7 @@ export class Perk {
   perkKey(perk){
     return `${perk}`
   }
+
   save() {
     if (this.perk && this.lines) {
       localStorage.setItem(this.perkKey(this.perk), JSON.stringify(this.lines.map(l => ({startTime: l.startTime}))));
@@ -139,13 +143,21 @@ export class Perk {
   }
 
   getRowEndTime(index){
-    return index+1 === this.lines.length ? this.duration : this.lines[index+1].startTime
+    return index+1 >= this.lines.length ? this.duration : this.lines[index+1].startTime
   }
 
   getRowTimes(index){
     const startTime = this.getRowStartTime(index);
     const endTime = this.getRowEndTime(index);
     return {startTime,endTime}
+  }
+
+  get currentLineEndTime(){
+    return this.getRowEndTime(this.currentLine);
+  }
+
+  get nextLineEndTime(){
+      return this.getRowEndTime(this.currentLine + 1);
   }
 
   static downloadTimes() {

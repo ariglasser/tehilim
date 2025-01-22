@@ -11,10 +11,15 @@ export class Prakim {
   _current = undefined;
   _perk;
   _onPerkChange;
+  _onTotalTimeLoaded;
 
   set onPerkChange(onPerkChange) {
     this._onPerkChange = onPerkChange;
   }
+  set onTotalTimeLoaded(onTotalTimeLoaded) {
+    this._onTotalTimeLoaded = onTotalTimeLoaded;
+  }
+
   constructor(_weekDay) {
     this.weekDay = _weekDay
     this._perk = new Perk()
@@ -101,22 +106,22 @@ export class Prakim {
         .then((total)=>{
           this._totalTimes[this.weekDay] = total
           delete this._waitingTotals[this.weekDay]
-          this._onPerkChange && this._onPerkChange(this.Perk)
+          this._onTotalTimeLoaded && this._onTotalTimeLoaded()
         })
     }
     return this._totalTimes[this.weekDay] ?? 0;
   }
-
-  async wait() {
-    await this.updatePerkData()
-    if (!this._totalTimes[this.weekDay] && !this._waitingTotals[this.weekDay]) {
-      this.totalTime;
-    }
-    if (!this._totalTimes[this.weekDay] && this._waitingTotals[this.weekDay]) {
-      return this._waitingTotals[this.weekDay];
-    }
-    return this._totalTimes[this.weekDay];
-  }
+  //
+  // async wait() {
+  //   await this.updatePerkData()
+  //   if (!this._totalTimes[this.weekDay] && !this._waitingTotals[this.weekDay]) {
+  //     this.totalTime;
+  //   }
+  //   if (!this._totalTimes[this.weekDay] && this._waitingTotals[this.weekDay]) {
+  //     return this._waitingTotals[this.weekDay];
+  //   }
+  //   return this._totalTimes[this.weekDay];
+  // }
 
   async loadDurations(prakim) {
     return prakim.reduce(async (total, perek)=>{

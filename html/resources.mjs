@@ -106,8 +106,6 @@ export async function loadPerkData(perk) {
     await CACHE.put(PERK_DATA,perkData,perk);
   }
   perkData = JSON.parse(perkData);
-
-
   return perkData;
 }
 export async function loadPerkAudio(perk) {

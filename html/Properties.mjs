@@ -5,7 +5,8 @@ const DEFAULTS = {
   perk:undefined,
   weekDay:new Date().getDay(),
   isFixTimes:true,
-  isAutoScroll:true
+  isAutoScroll:true,
+  isInteractive:false,
 }
 const reduceValue =(element,path) =>
   path.split('.').reduce((o, k) => o[k], element)
@@ -63,6 +64,13 @@ export class Properties extends EventTarget {
   set isSound(value) {
     this.#setValue('isSound',value)
   }
+get isInteractive() {
+    return this._config['isInteractive']
+  }
+
+  set isInteractive(value) {
+    this.#setValue('isInteractive',value)
+  }
 
   get perk() {
     return this._config['perk']
@@ -102,15 +110,15 @@ export class Properties extends EventTarget {
   bindToElement(id,eventName,path,property){
     const element = document.getElementById(id);
     this.elements[property] = {element,path};
-    element.addEventListener(eventName, e=>
-      this[property] = reduceValue(e,`target.${path}`)
+    element.addEventListener(eventName, e=> {
+        this[property] = reduceValue(e, `target.${path}`)
+      }
     )
+    setReducedValue(element,path,this[property])
   }
 
   #setValue = (key, value) =>{
-
     const old = this._config[key]
-
     if (old !== value) {
       this._config[key] = value;
       this.#save();
@@ -130,6 +138,13 @@ export class Properties extends EventTarget {
 
   on(eventName, listener) {
     this.addEventListener(eventName, listener);
+    const key = eventName.replace("Change",'')
+    const old = this._config?.[key]
+    if (old !== undefined) {
+      const value = this._config[key]
+      listener({eventName,detail:{old,value}})
+    }
+
   }
 
   off(eventName, listener) {
